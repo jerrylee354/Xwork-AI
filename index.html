@@ -621,7 +621,7 @@
 
     <!-- Signup Page -->
     <div id="signup-page" class="container hidden">
-        <h1>開始學習吧！</h1>
+        <h1>馬上開始吧！</h1>
         <div class="input-container">
             <input type="email" id="signup-email" class="input-field" placeholder="電子郵件" required>
         </div>
@@ -976,7 +976,7 @@
                         body: JSON.stringify({
                             contents: [{
                                 role: 'user',
-                                parts: [{ text: `根據以下訊息生成一個3到6字的中文聊天室名稱，不要提供任何說明，只返回名稱：${text}` }]
+                                parts: [{ text: `根據以下訊息生成一個3到6字的中文聊天室名稱，不要提供任何說明，只給我名字：${text}` }]
                             }]
                         })
                     });
