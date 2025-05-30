@@ -638,6 +638,73 @@ let uploadedContent = null;
 let uploadedImageBase64 = null;
 let uploadedImageMime = null;
 
+// -- 當前時間(每次送出訊息都獲取) --
+function getCurrentDateTimeStr() {
+  const now = new Date();
+  // yyyy-MM-dd HH:mm:ss
+  return now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0")
+    +" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0")+":"+String(now.getSeconds()).padStart(2,"0");
+}
+
+// ------ 天氣API ------
+const TOMORROW_API_KEY = "HBiLD92vzozGrbSk1M2NPwVaRIjrNHAf";
+const WEATHER_API_URL = "https://api.tomorrow.io/v4/weather/forecast";
+
+// 取得瀏覽器定位，Promise回傳 {lat, lon}
+function getUserLocation() {
+  return new Promise((resolve, reject) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({lat: pos.coords.latitude, lon: pos.coords.longitude}),
+        err => resolve(null), // 若用戶拒絕就回傳null
+        {timeout: 4000}
+      );
+    } else {
+      resolve(null);
+    }
+  });
+}
+async function fetchWeatherByLocation(locationObj) {
+  const url = `${WEATHER_API_URL}?location=${locationObj.lat},${locationObj.lon}&apikey=${TOMORROW_API_KEY}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Weather API error");
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+function parseWeatherText(weather) {
+  try {
+    const today = weather.timelines.daily && weather.timelines.daily[0];
+    if (!today) return "找不到天氣資料，請稍後再試。";
+    const d = today.values;
+    let result = "";
+    if (d.temperatureAvg !== undefined) result += `平均溫度：${d.temperatureAvg.toFixed(1)}°C\n`;
+    if (d.temperatureMin !== undefined) result += `最低：${d.temperatureMin.toFixed(1)}°C；`;
+    if (d.temperatureMax !== undefined) result += `最高：${d.temperatureMax.toFixed(1)}°C\n`;
+    if (d.precipitationProbabilityAvg !== undefined) result += `降雨機率：${Math.round(d.precipitationProbabilityAvg)}%\n`;
+    if (d.weatherCodeDay !== undefined) result += `天氣概況：${weatherCodeToText(d.weatherCodeDay)}\n`;
+    if (d.windSpeedAvg !== undefined) result += `平均風速：${d.windSpeedAvg.toFixed(1)} m/s\n`;
+    if (d.humidityAvg !== undefined) result += `平均濕度：${Math.round(d.humidityAvg)}%\n`;
+    return result;
+  } catch {
+    return "天氣資料解析失敗";
+  }
+}
+function weatherCodeToText(code) {
+  const table = {
+    1000: "晴朗", 1100: "大致晴朗", 1101: "多雲", 1102: "陰", 2000: "有霧", 2100: "薄霧", 4000: "小雨", 4001: "雨",
+    4200: "小陣雨", 4201: "大雨", 5000: "下雪", 5001: "少雪", 5100: "小雪", 5101: "大雪", 6000: "雨夾雪", 6001: "雨加雪",
+    6200: "小雨夾雪", 6201: "大雨夾雪", 7000: "冰雹", 7101: "大冰雹", 7102: "小冰雹", 8000: "雷暴"
+  };
+  return table[code] || "不明";
+}
+function isWeatherQuery(msg) {
+  return /天氣|weather|氣象|下雨|晴|溫度|濕度|forecast|rain|sunny|cloud|snow|會不會下雨|幾度|today's weather/i.test(msg);
+}
+
 // -------- 聊天記錄存取 ---------
 function saveChatsToStorage() {
   localStorage.setItem(CHAT_KEY, JSON.stringify(chats));
@@ -719,6 +786,7 @@ function switchChat(chatId) {
   conversationHistory = chat.history;
   renderChatList();
   renderChatHistory();
+  updateSuggestionBarForCurrentChat();
 }
 function addNewChat() {
   const chat = createNewChatObj();
@@ -730,6 +798,7 @@ function addNewChat() {
   setTimeout(() => {
     saveChatsToStorage();
   }, 0);
+  updateSuggestionBarForCurrentChat();
 }
 function renderChatHistory() {
   chatArea.innerHTML = "";
@@ -763,6 +832,7 @@ function renderChatHistory() {
   } else {
     sidebarDesc.classList.add("hide");
   }
+  updateSuggestionBarForCurrentChat();
 }
 function showChatListLoader(show) {
   if (show) {
@@ -870,7 +940,6 @@ async function fetchSuggestions() {
       btn.onclick = function(e) {
         e.preventDefault();
         chatInput.value = sug;
-        // 觸發表單送出
         inputBox.dispatchEvent(new Event('submit', {bubbles:true, cancelable:true}));
         showSuggestionsBar(false);
       };
@@ -890,11 +959,24 @@ function showSuggestionsBar(show) {
   suggestionsBar.style.display = show ? 'flex' : 'none';
   if(show) fetchSuggestions();
 }
-chatInput.addEventListener('input', () => {
-  if (chatInput.value.trim().length > 0) {
-    showSuggestionsBar(false);
-  } else if (!chatting) {
+function updateSuggestionBarForCurrentChat() {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (chat && (!chat.history || chat.history.length === 0)) {
     showSuggestionsBar(true);
+  } else {
+    showSuggestionsBar(false);
+  }
+}
+chatInput.addEventListener('input', () => {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (chat && (!chat.history || chat.history.length === 0)) {
+    if (chatInput.value.trim().length > 0) {
+      showSuggestionsBar(false);
+    } else {
+      showSuggestionsBar(true);
+    }
+  } else {
+    showSuggestionsBar(false);
   }
 });
 
@@ -959,7 +1041,6 @@ fileInput.addEventListener('change', () => {
     }
   }
 });
-
 async function genImage(prompt) {
   const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey;
   const payload = {
@@ -1023,7 +1104,32 @@ inputBox.addEventListener('submit', async (e) => {
     appendMsg(userMsg, 'user', false, false);
   }
 
-  // AI繪圖指令（如果用戶問"畫圖"或"生成圖片"相關字眼）
+  // =========== 天氣查詢邏輯 ===========
+  if (isWeatherQuery(msg)) {
+    const bubble = appendMsg("正在查詢天氣...", "ai", true, false);
+    let locationObj = await getUserLocation();
+    let locationStr = "";
+    if (!locationObj) {
+      locationStr = "（注意：未取得定位，將以 Boston, MA 作為預設位置）";
+      locationObj = {lat: 42.3478, lon: -71.0466};
+    }
+    const weatherData = await fetchWeatherByLocation(locationObj);
+    chatArea.removeChild(bubble.parentNode);
+    let weatherText = weatherData ? parseWeatherText(weatherData) : "天氣查詢過程發生錯誤，請稍後再試。";
+    // 整理回覆
+    let currTime = getCurrentDateTimeStr();
+    let summary = `根據你當前位置${locationStr}，以下是${currTime}的天氣整理：\n${weatherText}`;
+    appendMsg(summary, "ai", false, true);
+    conversationHistory.push({role: "user", parts: [{ text: msg }]});
+    conversationHistory.push({role: "model", parts: [{ text: summary }]});
+    updateChatTitle(chats.find(c=>c.id===currentChatId));
+    saveChatsToStorage();
+    renderChatList();
+    showSuggestionsBar(false);
+    return;
+  }
+
+  // AI繪圖指令
   if(/^ *(畫|生成|create|draw|generate|make).*(圖|image|picture|photo|畫|圖片)/i.test(msg)) {
     await genImage(msg.replace(/^ *(畫|生成|create|draw|generate|make)/i, ""));
     uploadedFile = null;
@@ -1039,6 +1145,7 @@ inputBox.addEventListener('submit', async (e) => {
     updateChatTitle(chats.find(c=>c.id===currentChatId));
     saveChatsToStorage();
     renderChatList();
+    showSuggestionsBar(false);
     return;
   }
 
@@ -1054,7 +1161,9 @@ inputBox.addEventListener('submit', async (e) => {
   } else if(uploadedContent){
     userParts.push({ text: `\n[Uploaded file: ${uploadedFile.name}]\n${uploadedContent}` });
   }
-  conversationHistory.push({ role: "user", parts: userParts });
+  // 把當前時間也放進 prompt context，讓 AI 能根據時間回答
+  const nowStr = getCurrentDateTimeStr();
+  conversationHistory.push({ role: "user", parts: [ { text: `[當前日期與時間為: ${nowStr}]\n` + msg } ] });
 
   sendBtn.disabled = true;
   const aiBubble = appendMsg('', 'ai', true, false);
@@ -1111,8 +1220,8 @@ inputBox.addEventListener('submit', async (e) => {
   updateChatTitle(chats.find(c=>c.id===currentChatId));
   saveChatsToStorage();
   renderChatList();
+  showSuggestionsBar(false);
 });
-
 showSuggestionsBar(true);
 </script>
 </body>
