@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Xwork AI (beta)</title>
+  <title>AI Chatbot - Gemini UI</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     html, body { height: 100%; margin: 0; padding: 0; background: #131314; color: #ededed; font-family: 'Segoe UI', Arial, sans-serif; }
@@ -14,17 +14,169 @@
       padding: 0;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
       height: 100vh;
       min-width: 60px;
-      transition: width 0.2s;
+      transition: width 0.25s cubic-bezier(.7,0,.3,1), min-width 0.25s cubic-bezier(.7,0,.3,1), opacity 0.18s;
+      position: relative;
+      z-index: 10;
+      overflow: hidden;
+      opacity: 1;
+    }
+    #sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #sidebar-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex: 1 1 0%;
+      min-height: 0;
+      min-width: 0;
+    }
+    #sidebar-header-row {
+      display: flex;
+      align-items: center;
+      padding: 24px 24px 0 24px;
+      min-height: 44px;
+      background: #232329;
+      position: relative;
+      flex-shrink: 0;
     }
     #sidebar-header {
-      padding: 24px 24px 0 24px;
       font-weight: bold;
       font-size: 1.4rem;
       letter-spacing: 0.5px;
       word-break: break-word;
+      margin-right: 14px;
+    }
+    .sidebar-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .sidebar-header-btn,
+    #sidebar-collapse-btn {
+      cursor: pointer;
+      background: none;
+      border: none;
+      outline: none;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 8px;
+      transition: background 0.15s, border 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0;
+      margin-right: 0;
+      font-size: 0;
+    }
+    .sidebar-header-btn:hover,
+    #sidebar-collapse-btn:hover {
+      background: #19191d;
+      border: 1px solid #35353d;
+    }
+    .sidebar-header-btn svg,
+    #sidebar-collapse-btn svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+      color: #e0e0e0;
+      stroke: #e0e0e0;
+    }
+    #sidebar-collapse-btn {
+      margin-left: 0;
+      margin-right: 0;
+      position: static;
+      top: auto;
+      right: auto;
+      z-index: 11;
+    }
+    #sidebar-main-block {
+      flex: 1 1 auto;
+      min-height: 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #chat-list {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: 100%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 10px 8px 0 8px;
+    }
+    .chat-list-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 7px;
+      background: none;
+      color: #ededed;
+      font-size: 1.04em;
+      border: none;
+      cursor: pointer;
+      margin-bottom: 0;
+      margin-right: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background .14s, color .14s;
+      opacity: 0.92;
+      max-width: 100%;
+    }
+    .chat-list-item.active,
+    .chat-list-item:hover {
+      background: #29293a;
+      color: #fff;
+      opacity: 1;
+    }
+    .chat-list-item-title {
+      flex: 1 1 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 90%;
+      min-width: 0;
+      font-size: 1em;
+    }
+    #sidebar-restore-btn {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      width: 36px;
+      height: 36px;
+      background: #232329;
+      border: 1px solid #35353d;
+      border-radius: 8px;
+      padding: 0;
+      cursor: pointer;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      box-shadow: 1px 2px 8px rgba(0,0,0,0.14);
+      transition: left 0.25s cubic-bezier(.7,0,.3,1), opacity 0.18s;
+      justify-content: center;
+    }
+    #sidebar-restore-btn svg {
+      width: 22px;
+      height: 22px;
+      stroke: #ededed;
+      color: #ededed;
+      background: none;
+    }
+    #sidebar.collapsed ~ #sidebar-restore-btn {
+      display: flex;
+      opacity: 1;
     }
     #sidebar-desc {
       font-size: 0.95rem;
@@ -32,6 +184,12 @@
       padding: 8px 24px;
       min-height: 64px;
       word-break: break-word;
+      display: block;
+      transition: opacity 0.18s;
+      flex-shrink: 0;
+    }
+    #sidebar-desc.hide {
+      display: none !important;
     }
     #sidebar-bottom {
       padding: 24px;
@@ -43,10 +201,50 @@
       border-top: 1px solid #282830;
       min-width: 0;
       word-break: break-word;
+      flex-shrink: 0;
     }
     #sidebar-bottom .status-dot {
       width: 12px; height: 12px; background: #19c37d; border-radius: 50%; display: inline-block;
     }
+    .loader {
+      position: relative;
+      width: 54px;
+      height: 54px;
+      border-radius: 10px;
+      margin: 18px auto 13px auto;
+    }
+    .loader div {
+      width: 8%;
+      height: 24%;
+      background: rgb(128, 128, 128);
+      position: absolute;
+      left: 50%;
+      top: 30%;
+      opacity: 0;
+      border-radius: 50px;
+      box-shadow: 0 0 3px rgba(0,0,0,0.2);
+      animation: fade458 1s linear infinite;
+    }
+    @keyframes fade458 {
+      from {
+        opacity: 1;
+      }
+      to {
+        opacity: 0.25;
+      }
+    }
+    .loader .bar1 { transform: rotate(0deg) translate(0, -130%); animation-delay: 0s;}
+    .loader .bar2 { transform: rotate(30deg) translate(0, -130%); animation-delay: -1.1s;}
+    .loader .bar3 { transform: rotate(60deg) translate(0, -130%); animation-delay: -1s;}
+    .loader .bar4 { transform: rotate(90deg) translate(0, -130%); animation-delay: -0.9s;}
+    .loader .bar5 { transform: rotate(120deg) translate(0, -130%); animation-delay: -0.8s;}
+    .loader .bar6 { transform: rotate(150deg) translate(0, -130%); animation-delay: -0.7s;}
+    .loader .bar7 { transform: rotate(180deg) translate(0, -130%); animation-delay: -0.6s;}
+    .loader .bar8 { transform: rotate(210deg) translate(0, -130%); animation-delay: -0.5s;}
+    .loader .bar9 { transform: rotate(240deg) translate(0, -130%); animation-delay: -0.4s;}
+    .loader .bar10 { transform: rotate(270deg) translate(0, -130%); animation-delay: -0.3s;}
+    .loader .bar11 { transform: rotate(300deg) translate(0, -130%); animation-delay: -0.2s;}
+    .loader .bar12 { transform: rotate(330deg) translate(0, -130%); animation-delay: -0.1s;}
     #main {
       flex: 1;
       min-width: 0;
@@ -102,27 +300,30 @@
       color: #ededed;
       border: 1px solid #2a2a32;
       border-radius: 10px;
-      padding: 12px 18px;
+      padding: 12px 10px;
       font-size: 1.03rem;
       cursor: pointer;
       min-width: 140px;
+      max-width: 225px;
       text-align: left;
       transition: border 0.15s, background 0.15s;
-      white-space: nowrap;
+      white-space: normal;
+      line-height: 1.25em;
+      display: inline-block;
+      height: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+      box-sizing: border-box;
       opacity: 0;
       transform: translateY(30px);
       animation: fadeInUp 0.6s cubic-bezier(.23,1.18,.42,0.98) forwards;
-      margin-bottom: 0;
-      margin-right: 8px;
-      margin-left: 0;
-      margin-top: 0;
-      display: inline-block;
-      height: auto;
+      user-select: none;
     }
     .suggestion-btn:last-child {
       margin-right: 0;
     }
-    .suggestion-btn:hover {
+    .suggestion-btn:hover, .suggestion-btn:focus {
       border: 1.5px solid #5d5dff;
       background: #23232a;
     }
@@ -341,60 +542,6 @@
       z-index: 3;
       justify-content: center;
     }
-    /* 滾輪細節 */
-    #suggestions-bar::-webkit-scrollbar {
-      height: 7px;
-      background: #19191d;
-    }
-    #suggestions-bar::-webkit-scrollbar-thumb {
-      background: #3c3c3c;
-      border-radius: 6px;
-    }
-    /* 響應式 */
-    @media (max-width: 1200px) {
-      #sidebar {
-        width: 160px;
-      }
-      #sidebar-header {
-        font-size: 1.2rem;
-      }
-      #welcome h1 {
-        font-size: 1.8rem;
-      }
-      #welcome p {
-        font-size: 1.05rem;
-      }
-    }
-    @media (max-width: 900px) {
-      #sidebar { width: 60px; min-width: 0; }
-      #sidebar-header, #sidebar-desc, #sidebar-bottom { display: none; }
-      #main, #input-box, #chat-area, #suggestions-bar { max-width: 98vw; }
-    }
-    @media (max-width: 700px) {
-      #main, #input-box, #chat-area, #suggestions-bar { max-width: 99vw; }
-      #sidebar { display: none; }
-      #container { flex-direction: column; }
-      #suggestions-bar {
-        max-width: 99vw;
-        padding: 0 2vw;
-        gap: 10px;
-      }
-      .suggestion-btn {
-        min-width: 100px;
-        min-height: 48px;
-        padding: 14px 10px;
-        font-size:1em;
-        height: auto;
-      }
-      .filename-label { max-width: 60px; font-size: 0.92em;}
-      .file-preview { max-width: 32px; max-height: 24px;}
-      #chat-area { margin-bottom: 76px;}
-    }
-    @media (max-width: 500px) {
-      #chat-area, #input-box, #suggestions-bar { max-width: 100vw; }
-      #suggestions-bar { gap: 6px; padding: 0 1vw; }
-      .suggestion-btn { min-width: 80px; min-height: 44px; padding: 12px 6px; font-size:0.98em;}
-    }
   </style>
 </head>
 <body>
@@ -402,27 +549,47 @@
   <div id="container">
     <!-- Sidebar -->
     <div id="sidebar">
-      <div>
-        <div id="sidebar-header">Chatbot</div>
-        <div id="sidebar-desc">Your conversations will appear here once you start chatting!</div>
+      <div id="sidebar-content">
+        <div id="sidebar-header-row">
+          <span id="sidebar-header">Chatbot</span>
+          <span class="sidebar-header-actions">
+            <button class="sidebar-header-btn" id="sidebar-add-btn" title="Add New Chat">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-linecap="round"/>
+                <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="sidebar-collapse-btn" title="Collapse Sidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor"/>
+                <rect x="8" y="8" width="8" height="8" rx="1.5" stroke="currentColor" fill="none"/>
+              </svg>
+            </button>
+          </span>
+        </div>
+        <div id="sidebar-main-block">
+          <div id="chat-list"></div>
+          <div id="sidebar-desc">Your conversations will appear here once you start chatting!</div>
+        </div>
       </div>
       <div id="sidebar-bottom">
         <span class="status-dot"></span>
         <span>Guest</span>
       </div>
     </div>
-    <!-- Main -->
+    <button id="sidebar-restore-btn" title="Show Sidebar" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+        <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor"/>
+        <rect x="8" y="8" width="8" height="8" rx="1.5" stroke="currentColor" fill="none"/>
+      </svg>
+    </button>
     <div id="main">
-      <!-- 歡迎 -->
       <div id="welcome">
         <h1>Hello there!</h1>
         <p>How can I help you today?</p>
       </div>
-      <!-- 預測回覆橫條 -->
       <div id="suggestions-bar"></div>
-      <!-- 聊天區 -->
       <div id="chat-area"></div>
-      <!-- 輸入區 -->
       <form id="input-box" autocomplete="off">
         <div class="messageBox">
           <div class="fileUploadWrapper">
@@ -444,6 +611,11 @@
   </div>
 </div>
 <script>
+const CHAT_KEY = "gemini-multi-chats-v1";
+let chats = [];
+let currentChatId = null;
+let conversationHistory = [];
+const MAX_CONTEXT_MESSAGES = 8;
 const apiKey = "AIzaSyAjewm6dDlfMTvY26H_qGNdo4GZ7YGogyE";
 const chatArea = document.getElementById('chat-area');
 const chatInput = document.getElementById('messageInput');
@@ -454,19 +626,198 @@ const filenameLabel = document.getElementById('filename-label');
 const filePreview = document.getElementById('file-preview');
 const welcome = document.getElementById('welcome');
 const suggestionsBar = document.getElementById('suggestions-bar');
+const sidebar = document.getElementById('sidebar');
+const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+const sidebarRestoreBtn = document.getElementById('sidebar-restore-btn');
+const sidebarAddBtn = document.getElementById('sidebar-add-btn');
+const chatList = document.getElementById('chat-list');
+const sidebarDesc = document.getElementById('sidebar-desc');
 let chatting = false;
 let uploadedFile = null;
 let uploadedContent = null;
 let uploadedImageBase64 = null;
 let uploadedImageMime = null;
 
-// =======================
-// Contextual Memory
-// =======================
-let conversationHistory = [];
-const MAX_CONTEXT_MESSAGES = 8;
+// -------- 聊天記錄存取 ---------
+function saveChatsToStorage() {
+  localStorage.setItem(CHAT_KEY, JSON.stringify(chats));
+}
+function loadChatsFromStorage() {
+  showChatListLoader(true);
+  setTimeout(() => {
+    try {
+      chats = JSON.parse(localStorage.getItem(CHAT_KEY)) || [];
+      if (chats.length === 0) {
+        chats = [createNewChatObj()];
+      }
+      if (!currentChatId || !chats.find(c => c.id === currentChatId)) {
+        currentChatId = chats[0].id;
+      }
+      conversationHistory = chats.find(c => c.id === currentChatId).history;
+    } catch {
+      chats = [createNewChatObj()];
+      currentChatId = chats[0].id;
+      conversationHistory = chats[0].history;
+    }
+    showChatListLoader(false);
+    renderChatList();
+    renderChatHistory();
+  }, 700);
+}
+function createNewChatObj() {
+  return {
+    id: 'chat_' + Date.now() + '_' + Math.floor(Math.random()*100000),
+    history: [],
+    title: 'New chat',
+    aiTitleDone: false
+  };
+}
+function updateChatTitle(chat, force) {
+  if (chat.aiTitleDone) return;
+  let firstUserMsg = null;
+  for (let i = 0; i < chat.history.length; ++i) {
+    if (chat.history[i].role === "user") {
+      let text = "";
+      chat.history[i].parts.forEach(p => { if (p.text) text += p.text; });
+      if (text.trim()) {
+        firstUserMsg = text.trim();
+        break;
+      }
+    }
+  }
+  if (firstUserMsg && !chat.aiTitleDone) {
+    genAITitle(firstUserMsg, chat.id);
+    chat.title = firstUserMsg.slice(0, 20);
+    return;
+  }
+  if (force || !chat.title) chat.title = 'New chat';
+}
+function renderChatList() {
+  showChatListLoader(false);
+  if (chats.length === 0 || (chats.length === 1 && chats[0].history.length === 0)) {
+    sidebarDesc.classList.remove("hide");
+  } else {
+    sidebarDesc.classList.add("hide");
+  }
+  chatList.innerHTML = "";
+  chats.forEach(chat => {
+    const btn = document.createElement("button");
+    btn.className = "chat-list-item" + (chat.id === currentChatId ? " active" : "");
+    btn.innerHTML = `<span class="chat-list-item-title">${chat.title || "New chat"}</span>`;
+    btn.onclick = () => {
+      if (currentChatId !== chat.id) {
+        switchChat(chat.id);
+      }
+    };
+    chatList.appendChild(btn);
+  });
+}
+function switchChat(chatId) {
+  currentChatId = chatId;
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat) return;
+  conversationHistory = chat.history;
+  renderChatList();
+  renderChatHistory();
+}
+function addNewChat() {
+  const chat = createNewChatObj();
+  chats.unshift(chat);
+  currentChatId = chat.id;
+  conversationHistory = chat.history;
+  renderChatList();
+  renderChatHistory();
+  setTimeout(() => {
+    saveChatsToStorage();
+  }, 0);
+}
+function renderChatHistory() {
+  chatArea.innerHTML = "";
+  let anyMsg = false;
+  conversationHistory.forEach(msg => {
+    if (msg.role === "user") {
+      let text = msg.parts.map(p => p.text || "").join("");
+      if (text.trim()) {
+        appendMsg(text, "user");
+        anyMsg = true;
+      }
+    } else if (msg.role === "model") {
+      let text = msg.parts.map(p => p.text || "").join("");
+      if (text.trim()) {
+        appendMsg(text, "ai");
+        anyMsg = true;
+      }
+    }
+  });
+  if (anyMsg) {
+    welcome.style.display = "none";
+    chatArea.style.display = "flex";
+    chatting = true;
+  } else {
+    welcome.style.display = "";
+    chatArea.style.display = "none";
+    chatting = false;
+  }
+  if (chats.length === 0 || (chats.length === 1 && chats[0].history.length === 0)) {
+    sidebarDesc.classList.remove("hide");
+  } else {
+    sidebarDesc.classList.add("hide");
+  }
+}
+function showChatListLoader(show) {
+  if (show) {
+    chatList.innerHTML = `<div class="loader" id="chat-list-loader">
+      <div class="bar1"></div><div class="bar2"></div><div class="bar3"></div><div class="bar4"></div>
+      <div class="bar5"></div><div class="bar6"></div><div class="bar7"></div><div class="bar8"></div>
+      <div class="bar9"></div><div class="bar10"></div><div class="bar11"></div><div class="bar12"></div>
+    </div>`;
+  } else {
+    const loader = document.getElementById('chat-list-loader');
+    if(loader) loader.remove();
+  }
+}
+async function genAITitle(firstMsg, chatId) {
+  const prompt = `請針對以下使用者的第一句提問，為這個對話擬一個最多10字的有意義聊天室標題，只回標題本身，不要任何標點或說明：
+${firstMsg}`;
+  try {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro:generateContent?key=" + apiKey, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          { parts: [ { text: prompt } ] }
+        ]
+      })
+    });
+    const data = await res.json();
+    let title = "";
+    if(data.candidates && data.candidates[0] && data.candidates[0].content.parts[0].text) {
+      title = data.candidates[0].content.parts[0].text.trim();
+      title = title.replace(/^[\s\-\.：:【\[]+/,"").replace(/[\-\.\]】：:]+$/,"").replace(/\s+/g, "");
+      if(title.length > 10) title = title.slice(0,10);
+    }
+    const chat = chats.find(c => c.id === chatId);
+    if(chat) {
+      chat.title = title || chat.title || firstMsg.slice(0, 10);
+      chat.aiTitleDone = true;
+      saveChatsToStorage();
+      renderChatList();
+    }
+  } catch(e) { }
+}
+loadChatsFromStorage();
 
-// 動態生成英文預測回覆，每則10~15字，每則不能重複
+sidebarCollapseBtn.addEventListener('click', () => {
+  sidebar.classList.add("collapsed");
+  sidebarRestoreBtn.style.display = "flex";
+  sidebarRestoreBtn.style.left = "24px";
+});
+sidebarRestoreBtn.addEventListener('click', () => {
+  sidebar.classList.remove("collapsed");
+  sidebarRestoreBtn.style.display = "none";
+});
+sidebarAddBtn.onclick = addNewChat;
+
 async function fetchSuggestions() {
   suggestionsBar.innerHTML = '<div style="color:#aaa;font-size:1.05em;padding:15px 0;">AI is generating suggestions...</div>';
   try {
@@ -485,12 +836,10 @@ async function fetchSuggestions() {
     if(data.candidates && data.candidates[0]) {
       const raw = data.candidates[0].content.parts[0].text;
       suggestionList = raw.split("\n").map(s=>s.trim()).filter(Boolean);
-      // 過濾長度與重複
       suggestionList = suggestionList.filter((sug,idx,arr) =>
         sug.length >= 10 && sug.length <= 15 &&
         arr.indexOf(sug) === idx
       );
-      // 再嚴格限制每則內容不能相同
       const seen = {};
       suggestionList = suggestionList.filter(sug => {
         if (seen[sug.toLowerCase()]) return false;
@@ -503,7 +852,6 @@ async function fetchSuggestions() {
       }
     }
     while (suggestionList.length < 4) {
-      // 補充不重複的預設
       const defaults = [
         "What's your hobby?", "Tell me a joke!", "Best book to read?", "Describe your day."
       ];
@@ -511,31 +859,37 @@ async function fetchSuggestions() {
         if(suggestionList.indexOf(d) === -1 && suggestionList.length<4) suggestionList.push(d);
       }
     }
-    // 動態生成四顆建議按鈕，有動畫
     suggestionsBar.innerHTML = "";
     suggestionList.forEach((sug, idx) => {
       const btn = document.createElement('button');
+      btn.type = "button";
       btn.className = 'suggestion-btn';
       btn.innerText = sug;
       btn.style.animationDelay = (0.07 * idx) + 's';
-      btn.addEventListener('click', () => {
+      btn.tabIndex = 0;
+      btn.onclick = function(e) {
+        e.preventDefault();
         chatInput.value = sug;
-        sendBtn.click();
-      });
+        // 觸發表單送出
+        inputBox.dispatchEvent(new Event('submit', {bubbles:true, cancelable:true}));
+        showSuggestionsBar(false);
+      };
+      btn.onkeydown = function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          btn.click();
+        }
+      };
       suggestionsBar.appendChild(btn);
     });
   } catch(e) {
     suggestionsBar.innerHTML = '<div style="color:#aaa;">AI suggestions failed. Please refresh.</div>';
   }
 }
-
-// 頁面剛載入時（還沒問任何問題）才顯示預測回覆
 function showSuggestionsBar(show) {
   suggestionsBar.style.display = show ? 'flex' : 'none';
   if(show) fetchSuggestions();
 }
-
-// 只要輸入框有內容或曾經問過問題就隱藏預測回覆
 chatInput.addEventListener('input', () => {
   if (chatInput.value.trim().length > 0) {
     showSuggestionsBar(false);
@@ -544,7 +898,6 @@ chatInput.addEventListener('input', () => {
   }
 });
 
-// 顯示訊息泡泡
 function appendMsg(text, sender, isTyping = false, anim = false) {
   const row = document.createElement('div');
   row.className = 'msg-row msg-' + sender;
@@ -565,14 +918,11 @@ function appendMsg(text, sender, isTyping = false, anim = false) {
     return bubble;
   }
 }
-
-// 淡入動畫顯示AI訊息
 function fadeInAIMessage(bubble, text) {
   bubble.classList.add('fade-in-anim');
   bubble.innerHTML = text.replace(/\n/g, '<br>');
 }
 
-// 檔案處理
 fileInput.addEventListener('change', () => {
   uploadedFile = null;
   uploadedContent = null;
@@ -590,8 +940,7 @@ fileInput.addEventListener('change', () => {
     if(mimeType.startsWith('image/')){
       const reader = new FileReader();
       reader.onload = function(e) {
-        const base64 = e.target.result.split(',')[1];
-        uploadedImageBase64 = base64;
+        uploadedImageBase64 = e.target.result.split(',')[1];
         uploadedImageMime = mimeType;
         filePreview.src = e.target.result;
         filePreview.style.display = 'inline-block';
@@ -611,20 +960,53 @@ fileInput.addEventListener('change', () => {
   }
 });
 
-// 處理送出訊息
+async function genImage(prompt) {
+  const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey;
+  const payload = {
+    contents: [
+      { role: "user", parts: [ { text: `Please generate an image for this prompt, and ONLY return the image (base64 PNG, do not answer text): ${prompt}` } ] }
+    ],
+    generationConfig: {
+      "response_mime_type": "image/png"
+    }
+  };
+  const bubble = appendMsg('AI is drawing...', 'ai', true, false);
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    chatArea.removeChild(bubble.parentNode);
+    let imgData = "";
+    if(data.candidates && data.candidates[0] && data.candidates[0].content.parts[0].inline_data) {
+      imgData = data.candidates[0].content.parts[0].inline_data.data;
+    } else if (data.candidates && data.candidates[0] && data.candidates[0].content.parts[0].text) {
+      imgData = data.candidates[0].content.parts[0].text;
+    }
+    if(imgData) {
+      appendMsg(`<img src="data:image/png;base64,${imgData}" style="max-width:100%;max-height:320px;border-radius:12px;box-shadow:0 3px 16px #0004;margin:6px 0;">`, 'ai', false, true);
+    } else {
+      appendMsg('Sorry, failed to generate image.', 'ai', false, true);
+    }
+  } catch (e) {
+    chatArea.removeChild(bubble.parentNode);
+    appendMsg('Network error or image API error.', 'ai', false, true);
+  }
+}
+
 inputBox.addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = chatInput.value.trim();
   if (!msg && !uploadedContent && !uploadedImageBase64) return;
   chatInput.value = '';
-  // 開始聊天後永遠隱藏預測回覆
   showSuggestionsBar(false);
   if (!chatting) {
     welcome.style.display = 'none';
     chatArea.style.display = 'flex';
     chatting = true;
   }
-  // 顯示使用者訊息
   let userMsg = msg;
   let hasImage = uploadedImageBase64 != null;
   if(uploadedFile){
@@ -641,7 +1023,25 @@ inputBox.addEventListener('submit', async (e) => {
     appendMsg(userMsg, 'user', false, false);
   }
 
-  // === 上下文記憶：加入到對話歷史 ===
+  // AI繪圖指令（如果用戶問"畫圖"或"生成圖片"相關字眼）
+  if(/^ *(畫|生成|create|draw|generate|make).*(圖|image|picture|photo|畫|圖片)/i.test(msg)) {
+    await genImage(msg.replace(/^ *(畫|生成|create|draw|generate|make)/i, ""));
+    uploadedFile = null;
+    uploadedContent = null;
+    uploadedImageBase64 = null;
+    uploadedImageMime = null;
+    fileInput.value = '';
+    filenameLabel.textContent = '';
+    filenameLabel.style.display = 'none';
+    filePreview.style.display = 'none';
+    filePreview.src = '';
+    conversationHistory.push({role: "user", parts: [{ text: msg }]});
+    updateChatTitle(chats.find(c=>c.id===currentChatId));
+    saveChatsToStorage();
+    renderChatList();
+    return;
+  }
+
   let userParts = [];
   if(msg) userParts.push({ text: msg });
   if(hasImage){
@@ -659,7 +1059,6 @@ inputBox.addEventListener('submit', async (e) => {
   sendBtn.disabled = true;
   const aiBubble = appendMsg('', 'ai', true, false);
 
-  // === 準備上下文內容，帶入最多 MAX_CONTEXT_MESSAGES 則對話（雙方一組）
   let contextToSend = [];
   if (conversationHistory.length > MAX_CONTEXT_MESSAGES) {
     contextToSend = conversationHistory.slice(-MAX_CONTEXT_MESSAGES);
@@ -674,13 +1073,11 @@ inputBox.addEventListener('submit', async (e) => {
       body: JSON.stringify({ contents: contextToSend })
     });
     const data = await response.json();
-    chatArea.removeChild(aiBubble.parentNode); // 移除思考中
+    chatArea.removeChild(aiBubble.parentNode);
     const newBubble = appendMsg('', 'ai', false, true);
     if (data.candidates && data.candidates[0]) {
       const aiMsg = data.candidates[0].content.parts[0].text;
       fadeInAIMessage(newBubble, aiMsg);
-
-      // === 上下文記憶：AI回覆也加入對話歷史 ===
       conversationHistory.push({
         role: "model",
         parts: data.candidates[0].content.parts
@@ -702,7 +1099,6 @@ inputBox.addEventListener('submit', async (e) => {
     });
   }
   sendBtn.disabled = false;
-  // 重設檔案
   uploadedFile = null;
   uploadedContent = null;
   uploadedImageBase64 = null;
@@ -712,9 +1108,11 @@ inputBox.addEventListener('submit', async (e) => {
   filenameLabel.style.display = 'none';
   filePreview.style.display = 'none';
   filePreview.src = '';
+  updateChatTitle(chats.find(c=>c.id===currentChatId));
+  saveChatsToStorage();
+  renderChatList();
 });
 
-// 初始僅在未提問時顯示建議（會自動請AI產生建議問題）
 showSuggestionsBar(true);
 </script>
 </body>
