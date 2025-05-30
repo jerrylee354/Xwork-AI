@@ -1,1273 +1,637 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
-<html lang="zh-TW">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xwork AI</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-        }
-
-        body {
-            background-color: #1c2526;
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #e5e7eb;
-        }
-
-        .container {
-            background: rgba(30, 30, 30, 0.7);
-            backdrop-filter: blur(12px);
-            padding: 20px;
-            border-radius: 24px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            width: 100%;
-            max-width: 400px;
-            animation: fadeIn 0.5s ease-in;
-            text-align: center;
-        }
-
-        .ai-container {
-            display: flex;
-            width: 100%;
-            height: 100%;
-            max-width: 1200px;
-            background: #1f2937;
-            border-radius: 18px;
-            overflow: hidden;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        h1 {
-            font-size: 24px;
-            color: #ffffff;
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
-
-        .input-container {
-            position: relative;
-            width: 100%;
-            margin: 10px 0;
-        }
-
-        .input-field {
-            width: 100%;
-            padding: 12px 40px 12px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            font-size: 16px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-        }
-
-        .input-field:focus {
-            outline: none;
-            border-color: #58cc02;
-        }
-
-        .input-field::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .eye-icon {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            width: 20px;
-            height: 20px;
-            fill: rgba(255, 255, 255, 0.7);
-        }
-
-        .eye-icon:hover {
-            fill: #ffffff;
-        }
-
-        .error {
-            background: rgba(255, 107, 107, 0.2);
-            color: #ff6b6b;
-            font-size: 14px;
-            padding: 10px;
-            border-radius: 8px;
-            margin: 10px 0;
-            border: 1px solid rgba(255, 107, 107, 0.3);
-        }
-
-        .button {
-            color: #ffffff;
-            font-size: 18px;
-            background: #58cc02;
-            border: none;
-            padding: 15px 16px;
-            box-shadow: 0 4px 0 #58a700;
-            border-radius: 12px;
-            cursor: pointer;
-            width: 100%;
-            margin: 10px 0;
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-        }
-
-        .button:hover {
-            background: #4ab802;
-        }
-
-        .button:active, .button.pressed {
-            box-shadow: none;
-            transform: translateY(4px);
-        }
-
-        .link {
-            color: #58cc02;
-            font-size: 14px;
-            margin: 10px 0;
-            display: inline-block;
-            text-decoration: none;
-            font-weight: 500;
-            cursor: pointer;
-            pointer-events: auto;
-        }
-
-        .link:hover {
-            text-decoration: underline;
-        }
-
-        .sidebar {
-            width: 35%;
-            background: #1a2433;
-            border-right: 1px solid #374151;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .sidebar-header h2 {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .sidebar-header .buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .add-chat-btn, .settings-btn {
-            background: #58cc02;
-            color: #fff;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .settings-btn svg {
-            width: 20px;
-            height: 20px;
-            fill: #fff;
-        }
-
-        .chat-section {
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .chat-section h3 {
-            font-size: 14px;
-            color: #9ca3af;
-            margin: 10px 0;
-        }
-
-        .chat-item {
-            padding: 10px;
-            border-radius: 10px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 14px;
-        }
-
-        .chat-item:hover {
-            background: #374151;
-        }
-
-        .chat-item.active {
-            background: #58cc02;
-            color: #fff;
-        }
-
-        .chat-area {
-            width: 65%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-header {
-            padding: 15px;
-            border-bottom: 1px solid #374151;
-            background: #1f2937;
-            display: flex;
-            align-items: center;
-        }
-
-        .back-btn {
-            display: none;
-            align-items: center;
-            gap: 5px;
-            background: none;
-            border: none;
-            font-size: 16px;
-            color: #58cc02;
-            cursor: pointer;
-        }
-
-        .back-btn svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .chat-header h2 {
-            font-size: 18px;
-            font-weight: 600;
-            flex: 1;
-            text-align: center;
-        }
-
-        .messages {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            background: #1f2937;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .message {
-            margin-bottom: 15px;
-            display: flex;
-            align-items: flex-end;
-        }
-
-        .message.sent {
-            justify-content: flex-end;
-        }
-
-        .message.received {
-            justify-content: flex-start;
-        }
-
-        .message-content {
-            max-width: 70%;
-            padding: 10px 15px;
-            border-radius: 18px;
-            font-size: 16px;
-            line-height: 1.4;
-            animation: slideIn 0.3s ease;
-        }
-
-        .message.sent .message-content {
-            background: #58cc02;
-            color: #fff;
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.received .message-content {
-            background: #374151;
-            color: #e5e7eb;
-            border-bottom-left-radius: 4px;
-        }
-
-        .typing-indicator {
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: flex-start;
-        }
-
-        .typing-indicator .message-content {
-            background: #374151;
-            color: #9ca3af;
-            font-style: italic;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .typing-indicator .dots {
-            display: inline-flex;
-            gap: 3px;
-        }
-
-        .typing-indicator .dot {
-            width: 6px;
-            height: 6px;
-            background: #9ca3af;
-            border-radius: 50%;
-            animation: blink 1.4s infinite both;
-        }
-
-        .typing-indicator .dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-indicator .dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        .input-area {
-            padding: 15px;
-            border-top: 1px solid #374151;
-            background: #1f2937;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            position: relative;
-            z-index: 2;
-        }
-
-        .input-box {
-            flex: 1;
-            padding: 10px 15px;
-            border: 1px solid #374151;
-            border-radius: 20px;
-            font-size: 16px;
-            outline: none;
-            background: #1a2433;
-            color: #e5e7eb;
-        }
-
-        .input-box:focus {
-            border-color: #58cc02;
-        }
-
-        .button-container {
-            position: relative;
-            width: 40px;
-            height: 40px;
-        }
-
-        .voice-btn, .send-btn {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border: none;
-            border-radius: 50%;
-            background: #58cc02;
-            color: #fff;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.3s, transform 0.3s;
-        }
-
-        .voice-btn {
-            opacity: 1;
-            transform: scale(1);
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24"><path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.41 2.72 6.23 6 6.72V22h2v-3.28c3.28-.49 6-3.31 6-6.72h-1.7z"/></svg>') no-repeat center;
-            background-size: 24px;
-        }
-
-        .send-btn {
-            opacity: 0;
-            transform: scale(0.5);
-        }
-
-        .voice-btn.hidden {
-            opacity: 0;
-            transform: scale(0.5);
-        }
-
-        .send-btn.visible {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .modal-content {
-            background: #1f2937;
-            padding: 20px;
-            border-radius: 10px;
-            width: 300px;
-            text-align: center;
-            color: #e5e7eb;
-        }
-
-        .modal-content h3 {
-            margin-bottom: 20px;
-        }
-
-        .modal-content input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #374151;
-            border-radius: 5px;
-            font-size: 16px;
-            background: #1a2433;
-            color: #e5e7eb;
-        }
-
-        .modal-content button {
-            padding: 10px 20px;
-            margin: 0 5px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .modal-content .confirm-btn {
-            background: #58cc02;
-            color: #fff;
-        }
-
-        .modal-content .cancel-btn {
-            background: #374151;
-            color: #e5e7eb;
-        }
-
-        .error-modal-content {
-            background: #1f2937;
-            padding: 20px;
-            border-radius: 10px;
-            width: 300px;
-            text-align: center;
-            color: #ff6b6b;
-        }
-
-        .error-modal-content h3 {
-            margin-bottom: 15px;
-            color: #ffffff;
-        }
-
-        .error-modal-content p {
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .error-modal-content .close-btn {
-            background: #58cc02;
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes blink {
-            0% { opacity: 0.2; }
-            20% { opacity: 1; }
-            100% { opacity: 0.2; }
-        }
-
-        @media (max-width: 768px) {
-            .ai-container {
-                position: relative;
-            }
-
-            .sidebar {
-                width: 100%;
-                position: absolute;
-                z-index: 1;
-                transform: translateX(0);
-            }
-
-            .sidebar.hidden {
-                transform: translateX(-100%);
-            }
-
-            .chat-area {
-                width: 100%;
-                position: absolute;
-                transform: translateX(100%);
-                height: 100%;
-            }
-
-            .chat-area.active {
-                transform: translateX(0);
-            }
-
-            .back-btn {
-                display: flex;
-            }
-
-            .chat-header {
-                position: sticky;
-                top: 0;
-                z-index: 3;
-            }
-
-            .messages {
-                flex: 1;
-                padding-bottom: 80px;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-
-            .input-area {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                padding: 10px;
-                background: #1f2937;
-                border-top: 1px solid #374151;
-                z-index: 3;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Xwork AI (beta)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; background: #131314; color: #ededed; font-family: 'Segoe UI', Arial, sans-serif; }
+    body, #root { height: 100vh; }
+    #container { display: flex; height: 100vh; min-height: 0; }
+    #sidebar {
+      width: 280px;
+      background: #232329;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100vh;
+    }
+    #sidebar-header {
+      padding: 24px 24px 0 24px;
+      font-weight: bold;
+      font-size: 1.4rem;
+      letter-spacing: 0.5px;
+    }
+    #sidebar-desc {
+      font-size: 0.95rem;
+      color: #b5b5be;
+      padding: 8px 24px;
+      min-height: 64px;
+    }
+    #sidebar-bottom {
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #19191d;
+      font-size: 1rem;
+      border-top: 1px solid #282830;
+    }
+    #sidebar-bottom .status-dot {
+      width: 12px; height: 12px; background: #19c37d; border-radius: 50%; display: inline-block;
+    }
+    #main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    #welcome {
+      margin-bottom: 30px;
+      text-align: center;
+      margin-top: -70px;
+    }
+    #welcome h1 {
+      font-size: 2.4rem;
+      font-weight: bold;
+      color: #fff;
+      margin: 0 0 10px 0;
+    }
+    #welcome p {
+      color: #b5b5be;
+      font-size: 1.3rem;
+      margin: 0;
+    }
+    #suggestions-bar {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 8px;
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 78px;
+      z-index: 2;
+      transition: opacity .2s;
+    }
+    .suggestion-btn {
+      background: #19191d;
+      color: #ededed;
+      border: 1px solid #2a2a32;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 1.03rem;
+      cursor: pointer;
+      min-width: 140px;
+      text-align: left;
+      transition: border 0.15s, background 0.15s;
+      white-space: pre-line;
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fadeInUp 0.6s cubic-bezier(.23,1.18,.42,0.98) forwards;
+    }
+    .suggestion-btn:hover {
+      border: 1.5px solid #5d5dff;
+      background: #23232a;
+    }
+    /* 預測回覆淡入動畫（從下方） */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+    #chat-area {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto 90px auto;
+      flex: 1 1 0%;
+      min-height: 0;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      background: transparent;
+    }
+    .msg-row {
+      display: flex;
+      margin-bottom: 10px;
+    }
+    .msg-user { justify-content: flex-end; }
+    .msg-ai { justify-content: flex-start; }
+    .bubble {
+      max-width: 70%;
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-size: 1.08rem;
+      line-height: 1.6;
+      word-break: break-word;
+      white-space: pre-line;
+      background: #19191d;
+      color: #ededed;
+      border-bottom-left-radius: 6px;
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    .bubble.user {
+      background: #5d5dff;
+      color: #fff;
+      border-bottom-right-radius: 6px;
+      border-bottom-left-radius: 16px;
+    }
+    .fade-in-anim {
+      opacity: 0;
+      transform: translate(-12px, -12px) scale(0.98);
+      animation: fadeInFromCorner 0.9s cubic-bezier(.23,1.18,.42,0.98) forwards;
+    }
+    @keyframes fadeInFromCorner {
+      from {
+        opacity: 0;
+        transform: translate(-12px, -12px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+    .messageBox {
+      width: 100%;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #1e1e1e;
+      padding: 0 15px;
+      border-radius: 10px;
+      border: 1px solid rgb(63, 63, 63);
+      box-sizing: border-box;
+      gap: 8px;
+    }
+    .messageBox:focus-within {
+      border: 1px solid #606060;
+    }
+    .fileUploadWrapper {
+      width: fit-content;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, Helvetica, sans-serif;
+      position: relative;
+    }
+    #file {
+      display: none;
+    }
+    .fileUploadWrapper label {
+      cursor: pointer;
+      width: fit-content;
+      height: fit-content;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .fileUploadWrapper label svg {
+      height: 18px;
+    }
+    .fileUploadWrapper label svg path {
+      transition: all 0.3s;
+    }
+    .fileUploadWrapper label svg circle {
+      transition: all 0.3s;
+    }
+    .fileUploadWrapper label:hover svg path {
+      stroke: #fff;
+    }
+    .fileUploadWrapper label:hover svg circle {
+      stroke: #fff;
+      fill: #3c3c3c;
+    }
+    .fileUploadWrapper label:hover .tooltip {
+      display: block;
+      opacity: 1;
+    }
+    .tooltip {
+      position: absolute;
+      top: -40px;
+      display: none;
+      opacity: 0;
+      color: white;
+      font-size: 10px;
+      text-wrap: nowrap;
+      background-color: #000;
+      padding: 6px 10px;
+      border: 1px solid #3c3c3c;
+      border-radius: 5px;
+      box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.596);
+      transition: all 0.3s;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events:none;
+    }
+    .filename-label {
+      color: #f5f5f5;
+      font-size: 0.98em;
+      margin: 0 8px;
+      max-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: #222;
+      border-radius: 5px;
+      padding: 2px 8px;
+    }
+    .file-preview {
+      max-height: 32px;
+      max-width: 48px;
+      margin-right: 8px;
+      border-radius: 4px;
+      vertical-align: middle;
+      background: #222;
+      object-fit: contain;
+    }
+    #messageInput {
+      width: 200px;
+      flex: 1;
+      height: 100%;
+      background-color: transparent;
+      outline: none;
+      border: none;
+      padding-left: 10px;
+      color: #f5f5f5;
+      font-size: 1.1rem;
+    }
+    #messageInput:focus ~ #sendButton svg path,
+    #messageInput:valid ~ #sendButton svg path {
+      fill: #3c3c3c;
+      stroke: white;
+    }
+    #sendButton {
+      width: fit-content;
+      height: 100%;
+      background-color: transparent;
+      outline: none;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    #sendButton svg {
+      height: 18px;
+      transition: all 0.3s;
+    }
+    #sendButton svg path {
+      transition: all 0.3s;
+    }
+    #sendButton:hover svg path {
+      fill: #3682f4;
+      stroke: white;
+    }
+    #input-box {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+      position: absolute;
+      bottom: 0;
+      left: 0; right: 0;
+      padding: 0 0 24px 0;
+      display: flex;
+      align-items: center;
+      background: transparent;
+      z-index: 3;
+      justify-content: center;
+    }
+    @media (max-width: 900px) {
+      #sidebar { width: 60px; }
+      #sidebar-header, #sidebar-desc, #sidebar-bottom { display: none; }
+    }
+    @media (max-width: 700px) {
+      #main, #input-box, #chat-area, #suggestions-bar { max-width: 98vw; }
+      #sidebar { display: none; }
+      #container { flex-direction: column; }
+      #suggestions-bar { flex-wrap: wrap; gap:10px;}
+      .suggestion-btn { min-width: 120px; padding: 8px 6px; font-size:1em;}
+      .filename-label { max-width: 60px; font-size: 0.92em;}
+      .file-preview { max-width: 32px; max-height: 24px;}
+    }
+  </style>
 </head>
 <body>
-    <!-- Login Page -->
-    <div id="login-page" class="container">
-        <h1>歡迎回來！</h1>
-        <div class="input-container">
-            <input type="email" id="login-email" class="input-field" placeholder="電子郵件" required>
-        </div>
-        <div class="input-container">
-            <input type="password" id="login-password" class="input-field" placeholder="密碼" required>
-            <svg class="eye-icon" onclick="togglePassword('login-password', this)" viewBox="0 0 24 24">
-                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-            </svg>
-        </div>
-        <div id="login-error" class="error hidden"></div>
-        <button class="button" onclick="handleLogin()">登入</button>
-        <a class="link" onclick="showPage('forgot-password-page')" href="javascript:void(0)">忘記密碼？</a>
-        <a class="link" onclick="showPage('signup-page')" href="javascript:void(0)">還沒有帳號？註冊</a>
+<div id="root">
+  <div id="container">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div>
+        <div id="sidebar-header">Chatbot</div>
+        <div id="sidebar-desc">Your conversations will appear here once you start chatting!</div>
+      </div>
+      <div id="sidebar-bottom">
+        <span class="status-dot"></span>
+        <span>Guest</span>
+      </div>
     </div>
-
-    <!-- Signup Page -->
-    <div id="signup-page" class="container hidden">
-        <h1>馬上開始吧！</h1>
-        <div class="input-container">
-            <input type="email" id="signup-email" class="input-field" placeholder="電子郵件" required>
+    <!-- Main -->
+    <div id="main">
+      <!-- 歡迎 -->
+      <div id="welcome">
+        <h1>Hello there!</h1>
+        <p>How can I help you today?</p>
+      </div>
+      <!-- 預測回覆橫條 -->
+      <div id="suggestions-bar"></div>
+      <!-- 聊天區 -->
+      <div id="chat-area"></div>
+      <!-- 輸入區 -->
+      <form id="input-box" autocomplete="off">
+        <div class="messageBox">
+          <div class="fileUploadWrapper">
+            <input type="file" id="file" accept="image/*,.txt,.md,.csv,.json,.pdf" />
+            <label for="file" title="Upload file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#adadad" stroke-width="2"><circle cx="12" cy="12" r="9" stroke="#adadad"/><path d="M15 13l-3-3-3 3"/><path d="M12 10v6"/></svg>
+              <div class="tooltip">Upload file/image</div>
+            </label>
+          </div>
+          <img id="file-preview" class="file-preview" style="display:none;">
+          <span class="filename-label" id="filename-label" style="display:none;"></span>
+          <input id="messageInput" required placeholder="Send a message..." autocomplete="off" />
+          <button id="sendButton" type="submit">
+            <svg viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5L15.5 9L2.5 2.5V7.5L11.5 9L2.5 10.5V15.5Z" fill="#adadad" stroke="#adadad" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
-        <div class="input-container">
-            <input type="password" id="signup-password" class="input-field" placeholder="密碼" required>
-            <svg class="eye-icon" onclick="togglePassword('signup-password', this)" viewBox="0 0 24 24">
-                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-            </svg>
-        </div>
-        <div class="input-container">
-            <input type="password" id="signup-confirm-password" class="input-field" placeholder="確認密碼" required>
-            <svg class="eye-icon" onclick="togglePassword('signup-confirm-password', this)" viewBox="0 0 24 24">
-                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-            </svg>
-        </div>
-        <div id="signup-error" class="error hidden"></div>
-        <button class="button" onclick="handleSignup()">註冊</button>
-        <a class="link" onclick="showPage('login-page')" href="javascript:void(0)">已有帳號？登入</a>
+      </form>
     </div>
-
-    <!-- Forgot Password Page -->
-    <div id="forgot-password-page" class="container hidden">
-        <h1>重設密碼</h1>
-        <div class="input-container">
-            <input type="email" id="reset-email" class="input-field" placeholder="電子郵件" required>
-        </div>
-        <div id="reset-error" class="error hidden"></div>
-        <button class="button" onclick="handlePasswordReset()">送出重設連結</button>
-        <a class="link" onclick="showPage('login-page')" href="javascript:void(0)">返回登入</a>
-    </div>
-
-    <!-- AI Chat Page -->
-    <div id="ai-page" class="ai-container hidden">
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h2>聊天室</h2>
-                <div class="buttons">
-                    <button class="add-chat-btn" title="新增聊天室">+</button>
-                    <button class="settings-btn" title="設定">
-                        <svg viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.65l-2-3.46a.5.5 0 0 0-.61-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-4a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.12.56-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.65l2.03 1.58c-.04.3-.06.61-.06.94s.02.64.06.94l-2.03 1.58a.5.5 0 0 0-.12.65l2 3.46a.5.5 0 0 0 .61.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h4a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.12-.56 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.65l-2.03-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="chat-section">
-                <h3>今天</h3>
-                <div id="today-chats"></div>
-            </div>
-            <div class="chat-section">
-                <h3>較早</h3>
-                <div id="earlier-chats"></div>
-            </div>
-        </div>
-        <div class="chat-area">
-            <div class="chat-header">
-                <button class="back-btn" id="backBtn">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-                    </svg>
-                    返回
-                </button>
-                <h2>選擇一個聊天室</h2>
-            </div>
-            <div class="messages" id="messages"></div>
-            <div class="input-area">
-                <input type="text" class="input-box" id="inputBox" placeholder="輸入訊息...">
-                <div class="button-container">
-                    <button class="voice-btn" id="voiceBtn" title="語音輸入"></button>
-                    <button class="send-btn" id="sendBtn" title="傳送">➤</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Rename Modal -->
-    <div class="modal" id="renameModal">
-        <div class="modal-content">
-            <h3>重新命名聊天室</h3>
-            <input type="text" id="renameInput" placeholder="輸入新名稱">
-            <button class="confirm-btn" id="confirmRename">確定</button>
-            <button class="cancel-btn" id="cancelRename">取消</button>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <h3>設定</h3>
-            <button class="button" onclick="handleLogout()">登出</button>
-            <button class="cancel-btn" onclick="settingsModal.style.display='none'">關閉</button>
-        </div>
-    </div>
-
-    <!-- Error Modal -->
-    <div class="modal" id="errorModal">
-        <div class="error-modal-content">
-            <h3>錯誤</h3>
-            <p id="errorMessage"></p>
-            <button class="close-btn" onclick="errorModal.style.display='none'">關閉</button>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, onSnapshot, query, orderBy, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDsePB3baKhailSJN0zXf0DcosyX0fM8xk",
-            authDomain: "xworkai.firebaseapp.com",
-            databaseURL: "https://xworkai-default-rtdb.firebaseio.com",
-            projectId: "xworkai",
-            storageBucket: "xworkai.firebasestorage.app",
-            messagingSenderId: "776423226967",
-            appId: "1:776423226967:web:6b3e01bbfe96b1a232ad12"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const aiName = 'Xwork AI';
-        const apiKey = 'AIzaSyAjewm6dDlfMTvY26H_qGNdo4GZ7YGogyE';
-        const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-
-        let chats = [];
-        let currentChatId = null;
-        let currentRenameChatId = null;
-        let userId = null;
-        let isSending = false;
-
-        const inputBox = document.getElementById('inputBox');
-        const voiceBtn = document.getElementById('voiceBtn');
-        const sendBtn = document.getElementById('sendBtn');
-        const messages = document.getElementById('messages');
-        const todayChats = document.getElementById('today-chats');
-        const earlierChats = document.getElementById('earlier-chats');
-        const addChatBtn = document.querySelector('.add-chat-btn');
-        const settingsBtn = document.querySelector('.settings-btn');
-        const backBtn = document.getElementById('backBtn');
-        const sidebar = document.querySelector('.sidebar');
-        const chatArea = document.querySelector('.chat-area');
-        const renameModal = document.getElementById('renameModal');
-        const settingsModal = document.getElementById('settingsModal');
-        const errorModal = document.getElementById('errorModal');
-        const errorMessage = document.getElementById('errorMessage');
-        const renameInput = document.getElementById('renameInput');
-        const confirmRename = document.getElementById('confirmRename');
-        const cancelRename = document.getElementById('cancelRename');
-
-        // Show error modal
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorModal.style.display = 'flex';
-        }
-
-        // Page navigation
-        window.showPage = function(pageId) {
-            document.querySelectorAll('.container, .ai-container').forEach(container => {
-                container.classList.add('hidden');
-            });
-            document.getElementById(pageId).classList.remove('hidden');
-            document.querySelectorAll('.error').forEach(error => {
-                error.classList.add('hidden');
-                error.textContent = '';
-            });
-        };
-
-        // Toggle password visibility
-        window.togglePassword = function(inputId, icon) {
-            const input = document.getElementById(inputId);
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.innerHTML = '<path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.54-1.38 2.74-3.15 3.55-5.25C21.27 6.61 16.73 3.5 12 3.5c-1.36 0-2.66.25-3.87.69l2.14 2.14C10.74 6.13 11.35 7 12 7zM2 4.27l2.28 2.28C2.54 7.94 1.36 9.69 1 12c1.73 4.39 6 7.5 11 7.5 1.36 0 2.66-.25 3.87-.69l2.14 2.14 1.41-1.41L3.41 2.86 2 4.27zm7.73 7.73c-.13.52-.23 1.06-.23 1.64 0 2.76 2.24 5 5 5 .58 0 1.12-.1 1.64-.23l-2.14-2.14c-.52.13-1.06.23-1.64.23-2.76 0-5-2.24-5-5 0-.58.1-1.12.23-1.64l-2.86-2.86z"/>';
-            } else {
-                input.type = 'password';
-                icon.innerHTML = '<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>';
-            }
-        };
-
-        // Handle Login
-        window.handleLogin = async function() {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const errorDiv = document.getElementById('login-error');
-
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                errorDiv.classList.add('hidden');
-            } catch (error) {
-                errorDiv.classList.remove('hidden');
-                errorDiv.textContent = getErrorMessage(error.code);
-            }
-        };
-
-        // Handle Signup
-        window.handleSignup = async function() {
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            const confirmPassword = document.getElementById('signup-confirm-password').value;
-            const errorDiv = document.getElementById('signup-error');
-
-            if (password !== confirmPassword) {
-                errorDiv.classList.remove('hidden');
-                errorDiv.textContent = '密碼與確認密碼不符';
-                return;
-            }
-
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                errorDiv.classList.add('hidden');
-                showPage('login-page');
-            } catch (error) {
-                errorDiv.classList.remove('hidden');
-                errorDiv.textContent = getErrorMessage(error.code);
-            }
-        };
-
-        // Handle Password Reset
-        window.handlePasswordReset = async function() {
-            const email = document.getElementById('reset-email').value;
-            const errorDiv = document.getElementById('reset-error');
-
-            try {
-                await sendPasswordResetEmail(auth, email);
-                errorDiv.classList.add('hidden');
-                showError('重設密碼連結已發送至您的電子郵件');
-                showPage('login-page');
-            } catch (error) {
-                errorDiv.classList.remove('hidden');
-                errorDiv.textContent = getErrorMessage(error.code);
-            }
-        };
-
-        // Handle Logout
-        window.handleLogout = async function() {
-            try {
-                await signOut(auth);
-                settingsModal.style.display = 'none';
-            } catch (error) {
-                showError('登出失敗：' + error.message);
-            }
-        };
-
-        // Error message handler
-        function getErrorMessage(errorCode) {
-            switch (errorCode) {
-                case 'auth/email-already-in-use':
-                    return '此電子郵件已被使用';
-                case 'auth/invalid-email':
-                    return '無效的電子郵件格式';
-                case 'auth/weak-password':
-                    return '密碼強度不足，至少需要6個字符';
-                case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                    return '電子郵件或密碼錯誤';
-                case 'auth/too-many-requests':
-                    return '請求過多，請稍後再試';
-                default:
-                    return '發生錯誤，請稍後再試';
-            }
-        }
-
-        // Auth state listener
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                userId = user.uid;
-                showPage('ai-page');
-                loadChats();
-            } else {
-                showPage('login-page');
-                chats = [];
-                currentChatId = null;
-                messages.innerHTML = '';
-                todayChats.innerHTML = '';
-                earlierChats.innerHTML = '';
-            }
-        });
-
-        // Load chats from Firestore
-        function loadChats() {
-            if (!userId) return;
-            const chatsRef = collection(db, `users/${userId}/chats`);
-            const q = query(chatsRef, orderBy('created', 'desc'));
-            onSnapshot(q, snapshot => {
-                chats = [];
-                snapshot.forEach(doc => {
-                    chats.push({ id: doc.id, ...doc.data() });
-                });
-                updateChatList();
-            });
-        }
-
-        // Button toggle logic
-        function updateButtonState() {
-            const hasText = inputBox.value.trim().length > 0;
-            voiceBtn.classList.toggle('hidden', hasText);
-            sendBtn.classList.toggle('visible', hasText);
-            sendBtn.disabled = isSending;
-        }
-
-        inputBox.addEventListener('input', updateButtonState);
-        updateButtonState();
-
-        // Send message
-        sendBtn.addEventListener('click', sendMessage);
-        inputBox.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && inputBox.value.trim() && !isSending) {
-                sendMessage();
-            }
-        });
-
-        async function sendMessage() {
-            if (!currentChatId || !userId || isSending) return;
-            const text = inputBox.value.trim();
-            if (!text) return;
-
-            isSending = true;
-            sendBtn.disabled = true;
-            updateButtonState();
-
-            const chat = chats.find(c => c.id === currentChatId);
-            if (!chat) {
-                isSending = false;
-                sendBtn.disabled = false;
-                updateButtonState();
-                return;
-            }
-
-            const isFirstMessage = chat.messages.length === 0;
-
-            // Update local chat
-            chat.messages.push({ type: 'sent', content: text, timestamp: new Date().toISOString() });
-
-            // Update Firestore
-            await setDoc(doc(db, `users/${userId}/chats`, currentChatId), chat);
-
-            const userMessage = document.createElement('div');
-            userMessage.className = 'message sent';
-            userMessage.innerHTML = `<div class="message-content">${text}</div>`;
-            messages.appendChild(userMessage);
-            inputBox.value = '';
-            updateButtonState();
-            messages.scrollTop = messages.scrollHeight;
-
-            // Auto-name chat for first message
-            if (isFirstMessage) {
-                try {
-                    const nameResponse = await fetch(`${apiUrl}?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                role: 'user',
-                                parts: [{ text: `根據以下訊息生成一個3到6字的中文聊天室名稱，不要提供任何說明，只給我名字：${text}` }]
-                            }]
-                        })
-                    });
-                    const nameData = await nameResponse.json();
-                    const newName = nameData.candidates[0].content.parts[0].text.trim() || '新聊天';
-                    chat.name = newName;
-                    await setDoc(doc(db, `users/${userId}/chats`, currentChatId), chat);
-                    document.querySelector('.chat-header h2').textContent = newName;
-                } catch (error) {
-                    console.error('命名錯誤:', error);
-                }
-            }
-
-            // Show typing indicator
-            const typingIndicator = document.createElement('div');
-            typingIndicator.className = 'typing-indicator';
-            typingIndicator.innerHTML = `
-                <div class="message-content">
-                    ${aiName} 正在輸入...
-                    <span class="dots">
-                        <span class="dot"></span>
-                        <span class="dot"></span>
-                        <span class="dot"></span>
-                    </span>
-                </div>`;
-            messages.appendChild(typingIndicator);
-            messages.scrollTop = messages.scrollHeight;
-
-            try {
-                const history = chat.messages.map(msg => ({
-                    role: msg.type === 'sent' ? 'user' : 'model',
-                    parts: [{ text: msg.content }]
-                }));
-
-                const response = await fetch(`${apiUrl}?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: history })
-                });
-                const data = await response.json();
-                typingIndicator.remove();
-                const aiResponse = data.candidates[0].content.parts[0].text || '收到你的訊息！';
-                const aiMessage = document.createElement('div');
-                aiMessage.className = 'message received';
-                aiMessage.innerHTML = `<div class="message-content">${aiResponse}</div>`;
-                messages.appendChild(aiMessage);
-                chat.messages.push({ type: 'received', content: aiResponse, timestamp: new Date().toISOString() });
-                await setDoc(doc(db, `users/${userId}/chats`, currentChatId), chat);
-                messages.scrollTop = messages.scrollHeight;
-            } catch (error) {
-                console.error('API 錯誤:', error);
-                typingIndicator.remove();
-                const errorMessage = document.createElement('div');
-                errorMessage.className = 'message received';
-                errorMessage.innerHTML = `<div class="message-content">抱歉，無法連接到伺服器。</div>`;
-                messages.appendChild(errorMessage);
-                chat.messages.push({ type: 'received', content: '抱歉，無法連接到伺服器。', timestamp: new Date().toISOString() });
-                await setDoc(doc(db, `users/${userId}/chats`, currentChatId), chat);
-                messages.scrollTop = messages.scrollHeight;
-            } finally {
-                isSending = false;
-                sendBtn.disabled = false;
-                updateButtonState();
-            }
-        }
-
-        // Voice input
-        voiceBtn.addEventListener('click', () => {
-            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-                showError('您的瀏覽器不支援語音輸入！請使用支援 Web Speech API 的瀏覽器，如 Chrome 或 Safari。');
-                return;
-            }
-
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'zh-TW';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
-            recognition.onstart = () => {
-                voiceBtn.style.backgroundColor = '#ff3b30';
-            };
-
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                inputBox.value = transcript;
-                updateButtonState();
-            };
-
-            recognition.onerror = (event) => {
-                console.error('語音識別錯誤:', event.error);
-                showError(`語音輸入失敗：${event.error}。請重試。`);
-                voiceBtn.style.backgroundColor = '#58cc02';
-            };
-
-            recognition.onend = () => {
-                voiceBtn.style.backgroundColor = '#58cc02';
-                recognition.stop();
-            };
-
-            try {
-                recognition.start();
-            } catch (error) {
-                console.error('語音啟動錯誤:', error);
-                showError('無法啟動語音輸入，請檢查麥克風權限。');
-            }
-        });
-
-        // Add chat
-        addChatBtn.addEventListener('click', async () => {
-            if (!userId) return;
-            const id = Date.now().toString();
-            const newChat = { id, name: `新聊天`, messages: [], created: new Date().toISOString() };
-            chats.push(newChat);
-            await setDoc(doc(db, `users/${userId}/chats`, id), newChat);
-            updateChatList();
-        });
-
-        // Settings
-        settingsBtn.addEventListener('click', () => {
-            settingsModal.style.display = 'flex';
-        });
-
-        // Update chat list
-        function updateChatList() {
-            todayChats.innerHTML = '';
-            earlierChats.innerHTML = '';
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            chats.forEach(chat => {
-                const chatItem = document.createElement('div');
-                chatItem.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
-                chatItem.textContent = chat.name;
-                chatItem.dataset.id = chat.id;
-
-                chatItem.addEventListener('click', () => {
-                    currentChatId = chat.id;
-                    document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
-                    chatItem.classList.add('active');
-                    document.querySelector('.chat-header h2').textContent = chat.name;
-                    messages.innerHTML = '';
-                    chat.messages.forEach(msg => {
-                        const msgDiv = document.createElement('div');
-                        msgDiv.className = `message ${msg.type}`;
-                        msgDiv.innerHTML = `<div class="message-content">${msg.content}</div>`;
-                        messages.appendChild(msgDiv);
-                    });
-                    messages.scrollTop = messages.scrollHeight;
-                    if (window.innerWidth <= 768) {
-                        sidebar.classList.add('hidden');
-                        chatArea.classList.add('active');
-                    }
-                });
-
-                chatItem.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    showContextMenu(e, chat.id);
-                });
-
-                chatItem.addEventListener('longpress', (e) => {
-                    showContextMenu(e, chat.id);
-                });
-
-                const chatDate = new Date(chat.created);
-                if (chatDate >= today) {
-                    todayChats.appendChild(chatItem);
-                } else {
-                    earlierChats.appendChild(chatItem);
-                }
-            });
-        }
-
-        // Context menu
-        function showContextMenu(e, chatId) {
-            const existingMenu = document.querySelector('.context-menu');
-            if (existingMenu) existingMenu.remove();
-
-            const menu = document.createElement('div');
-            menu.className = 'context-menu';
-            menu.style.position = 'absolute';
-            menu.style.background = '#1f2937';
-            menu.style.border = '1px solid #374151';
-            menu.style.borderRadius = '10px';
-            menu.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.3)';
-            menu.style.zIndex = '1000';
-            menu.style.left = `${e.pageX}px`;
-            menu.style.top = `${e.pageY}px`;
-
-            const renameBtn = document.createElement('button');
-            renameBtn.textContent = '重新命名';
-            renameBtn.style.display = 'block';
-            renameBtn.style.padding = '10px 20px';
-            renameBtn.style.border = 'none';
-            renameBtn.style.background = 'none';
-            renameBtn.style.color = '#e5e7eb';
-            renameBtn.style.textAlign = 'left';
-            renameBtn.style.fontSize = '14px';
-            renameBtn.style.cursor = 'pointer';
-            renameBtn.addEventListener('click', () => {
-                currentRenameChatId = chatId;
-                renameInput.value = chats.find(c => c.id === chatId).name;
-                renameModal.style.display = 'flex';
-                renameInput.focus();
-                menu.remove();
-            });
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = '刪除';
-            deleteBtn.style.display = 'block';
-            deleteBtn.style.padding = '10px 20px';
-            deleteBtn.style.border = 'none';
-            deleteBtn.style.background = 'none';
-            deleteBtn.style.color = '#e5e7eb';
-            deleteBtn.style.textAlign = 'left';
-            deleteBtn.style.fontSize = '14px';
-            deleteBtn.style.cursor = 'pointer';
-            deleteBtn.addEventListener('click', async () => {
-                if (userId) {
-                    await deleteDoc(doc(db, `users/${userId}/chats`, chatId));
-                }
-                if (currentChatId === chatId) {
-                    currentChatId = null;
-                    messages.innerHTML = '';
-                    document.querySelector('.chat-header h2').textContent = '選擇一個聊天室';
-                    if (window.innerWidth <= 768) {
-                        sidebar.classList.remove('hidden');
-                        chatArea.classList.remove('active');
-                    }
-                }
-                menu.remove();
-            });
-
-            menu.appendChild(renameBtn);
-            menu.appendChild(deleteBtn);
-            document.body.appendChild(menu);
-
-            document.addEventListener('click', () => menu.remove(), { once: true });
-        }
-
-        // Rename modal
-        confirmRename.addEventListener('click', async () => {
-            const newName = renameInput.value.trim();
-            if (newName && currentRenameChatId && userId) {
-                const chat = chats.find(c => c.id === currentRenameChatId);
-                chat.name = newName;
-                await setDoc(doc(db, `users/${userId}/chats`, currentRenameChatId), chat);
-                updateChatList();
-                if (currentChatId === currentRenameChatId) {
-                    document.querySelector('.chat-header h2').textContent = newName;
-                }
-            }
-            renameModal.style.display = 'none';
-            currentRenameChatId = null;
-        });
-
-        cancelRename.addEventListener('click', () => {
-            renameModal.style.display = 'none';
-            currentRenameChatId = null;
-        });
-
-        // Back button
-        backBtn.addEventListener('click', () => {
-            sidebar.classList.remove('hidden');
-            chatArea.classList.remove('active');
-        });
-
-        // Long press
-        function setupLongPress() {
-            let pressTimer;
-            document.querySelectorAll('.chat-item').forEach(item => {
-                item.addEventListener('mousedown', (e) => {
-                    pressTimer = setTimeout(() => {
-                        item.dispatchEvent(new Event('longpress'));
-                    }, 500);
-                });
-                item.addEventListener('mouseup', () => clearTimeout(pressTimer));
-                item.addEventListener('mouseleave', () => clearTimeout(pressTimer));
-                item.addEventListener('touchstart', (e) => {
-                    pressTimer = setTimeout(() => {
-                        item.dispatchEvent(new Event('longpress'));
-                    }, 500);
-                });
-                item.addEventListener('touchend', () => clearTimeout(pressTimer));
-                item.addEventListener('touchcancel', () => clearTimeout(pressTimer));
-            });
-        }
-
-        setupLongPress();
-        new MutationObserver(setupLongPress).observe(todayChats, { childList: true });
-        new MutationObserver(setupLongPress).observe(earlierChats, { childList: true });
-    </script>
+  </div>
+</div>
+<script>
+const apiKey = "AIzaSyAjewm6dDlfMTvY26H_qGNdo4GZ7YGogyE";
+const chatArea = document.getElementById('chat-area');
+const chatInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendButton');
+const inputBox = document.getElementById('input-box');
+const fileInput = document.getElementById('file');
+const filenameLabel = document.getElementById('filename-label');
+const filePreview = document.getElementById('file-preview');
+const welcome = document.getElementById('welcome');
+const suggestionsBar = document.getElementById('suggestions-bar');
+let chatting = false;
+let uploadedFile = null;
+let uploadedContent = null;
+let uploadedImageBase64 = null;
+let uploadedImageMime = null;
+
+// =======================
+// Contextual Memory
+// =======================
+let conversationHistory = []; // {role: 'user'|'model', parts: [{text|inline_data}]}
+const MAX_CONTEXT_MESSAGES = 8; // 包含最新提問與歷史上下文
+
+// 動態生成英文預測回覆，每則10~15字，並有動畫
+async function fetchSuggestions() {
+  suggestionsBar.innerHTML = '<div style="color:#aaa;font-size:1.05em;padding:15px 0;">AI is generating suggestions...</div>';
+  try {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          { parts: [ { text: "Please generate 4 creative and diverse example prompts for chatting with an AI, in English only, each 10 to 15 characters long (including spaces). No numbering, no explanation, just one on each line." } ] }
+        ]
+      })
+    });
+    const data = await response.json();
+    let suggestionList = [];
+    if(data.candidates && data.candidates[0]) {
+      const raw = data.candidates[0].content.parts[0].text;
+      suggestionList = raw.split("\n").map(s=>s.trim()).filter(Boolean);
+      // 補齊長度/格式
+      suggestionList = suggestionList.filter(sug => sug.length >= 8 && sug.length <= 20);
+      if(suggestionList.length > 4) suggestionList = suggestionList.slice(0,4);
+      if(suggestionList.length === 1 && (suggestionList[0].includes("|") || suggestionList[0].includes(";"))) {
+        suggestionList = suggestionList[0].split(/[|;]+/).map(s=>s.trim()).filter(Boolean);
+      }
+    }
+    // 若AI沒給夠，補預設
+    while(suggestionList.length < 4) {
+      suggestionList.push("How are you today?");
+    }
+    // 動態生成四顆建議按鈕，有動畫
+    suggestionsBar.innerHTML = "";
+    suggestionList.forEach((sug, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'suggestion-btn';
+      btn.innerText = sug;
+      btn.style.animationDelay = (0.07 * idx) + 's'; // 漸層動畫
+      btn.addEventListener('click', () => {
+        chatInput.value = sug;
+        sendBtn.click();
+      });
+      suggestionsBar.appendChild(btn);
+    });
+  } catch(e) {
+    suggestionsBar.innerHTML = '<div style="color:#aaa;">AI suggestions failed. Please refresh.</div>';
+  }
+}
+
+// 頁面剛載入時（還沒問任何問題）才顯示預測回覆
+function showSuggestionsBar(show) {
+  suggestionsBar.style.display = show ? 'flex' : 'none';
+  if(show) fetchSuggestions();
+}
+
+// 只要輸入框有內容或曾經問過問題就隱藏預測回覆
+chatInput.addEventListener('input', () => {
+  if (chatInput.value.trim().length > 0) {
+    showSuggestionsBar(false);
+  } else if (!chatting) {
+    showSuggestionsBar(true);
+  }
+});
+
+// 顯示訊息泡泡
+function appendMsg(text, sender, isTyping = false, anim = false) {
+  const row = document.createElement('div');
+  row.className = 'msg-row msg-' + sender;
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${sender}`;
+  if (isTyping) {
+    bubble.innerHTML = '<span style="color:#b5b5be">AI is typing...</span>';
+    row.appendChild(bubble);
+    chatArea.appendChild(row);
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return bubble;
+  } else {
+    bubble.innerHTML = text.replace(/\n/g, '<br>');
+    if (anim) bubble.classList.add('fade-in-anim');
+    row.appendChild(bubble);
+    chatArea.appendChild(row);
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return bubble;
+  }
+}
+
+// 淡入動畫顯示AI訊息
+function fadeInAIMessage(bubble, text) {
+  bubble.classList.add('fade-in-anim');
+  bubble.innerHTML = text.replace(/\n/g, '<br>');
+}
+
+// 檔案處理
+fileInput.addEventListener('change', () => {
+  uploadedFile = null;
+  uploadedContent = null;
+  uploadedImageBase64 = null;
+  uploadedImageMime = null;
+  filenameLabel.textContent = '';
+  filenameLabel.style.display = 'none';
+  filePreview.style.display = 'none';
+  filePreview.src = '';
+  if(fileInput.files.length > 0){
+    uploadedFile = fileInput.files[0];
+    filenameLabel.textContent = uploadedFile.name;
+    filenameLabel.style.display = 'inline';
+    const mimeType = uploadedFile.type;
+    if(mimeType.startsWith('image/')){
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64 = e.target.result.split(',')[1];
+        uploadedImageBase64 = base64;
+        uploadedImageMime = mimeType;
+        filePreview.src = e.target.result;
+        filePreview.style.display = 'inline-block';
+      };
+      reader.readAsDataURL(uploadedFile);
+    }
+    else if(mimeType === "text/plain" || mimeType === "text/markdown" || mimeType === "application/json" || mimeType === "text/csv"){
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        uploadedContent = e.target.result;
+      };
+      reader.readAsText(uploadedFile);
+    }
+    else{
+      uploadedContent = "[Unsupported file type]";
+    }
+  }
+});
+
+// 處理送出訊息
+inputBox.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = chatInput.value.trim();
+  if (!msg && !uploadedContent && !uploadedImageBase64) return;
+  chatInput.value = '';
+  // 開始聊天後永遠隱藏預測回覆
+  showSuggestionsBar(false);
+  if (!chatting) {
+    welcome.style.display = 'none';
+    chatArea.style.display = 'flex';
+    chatting = true;
+  }
+  // 顯示使用者訊息
+  let userMsg = msg;
+  let hasImage = uploadedImageBase64 != null;
+  if(uploadedFile){
+    if(hasImage){
+      userMsg += `\n[Uploaded image: ${uploadedFile.name}]`;
+      appendMsg(userMsg + `<br><img src="data:${uploadedImageMime};base64,${uploadedImageBase64}" style="max-width:128px;max-height:64px;border-radius:7px;margin-top:8px;">`, 'user', false, false);
+    }else if(uploadedContent){
+      userMsg += `\n[Uploaded file: ${uploadedFile.name}]\n` + uploadedContent;
+      appendMsg(userMsg, 'user', false, false);
+    }else{
+      appendMsg(userMsg, 'user', false, false);
+    }
+  }else{
+    appendMsg(userMsg, 'user', false, false);
+  }
+
+  // === 上下文記憶：加入到對話歷史 ===
+  let userParts = [];
+  if(msg) userParts.push({ text: msg });
+  if(hasImage){
+    userParts.push({
+      inline_data: {
+        mime_type: uploadedImageMime,
+        data: uploadedImageBase64
+      }
+    });
+  } else if(uploadedContent){
+    userParts.push({ text: `\n[Uploaded file: ${uploadedFile.name}]\n${uploadedContent}` });
+  }
+  conversationHistory.push({ role: "user", parts: userParts });
+
+  sendBtn.disabled = true;
+  const aiBubble = appendMsg('', 'ai', true, false);
+
+  // === 準備上下文內容，帶入最多 MAX_CONTEXT_MESSAGES 則對話（雙方一組）
+  let contextToSend = [];
+  if (conversationHistory.length > MAX_CONTEXT_MESSAGES) {
+    contextToSend = conversationHistory.slice(-MAX_CONTEXT_MESSAGES);
+  } else {
+    contextToSend = [...conversationHistory];
+  }
+
+  try {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: contextToSend })
+    });
+    const data = await response.json();
+    chatArea.removeChild(aiBubble.parentNode); // 移除思考中
+    const newBubble = appendMsg('', 'ai', false, true);
+    if (data.candidates && data.candidates[0]) {
+      const aiMsg = data.candidates[0].content.parts[0].text;
+      fadeInAIMessage(newBubble, aiMsg);
+
+      // === 上下文記憶：AI回覆也加入對話歷史 ===
+      conversationHistory.push({
+        role: "model",
+        parts: data.candidates[0].content.parts
+      });
+    } else {
+      fadeInAIMessage(newBubble, 'Sorry, AI returned no answer.');
+      conversationHistory.push({
+        role: "model",
+        parts: [{ text: "Sorry, AI returned no answer." }]
+      });
+    }
+  } catch (err) {
+    chatArea.removeChild(aiBubble.parentNode);
+    const newBubble = appendMsg('', 'ai', false, true);
+    fadeInAIMessage(newBubble, 'Network error. Please try again.');
+    conversationHistory.push({
+      role: "model",
+      parts: [{ text: "Network error. Please try again." }]
+    });
+  }
+  sendBtn.disabled = false;
+  // 重設檔案
+  uploadedFile = null;
+  uploadedContent = null;
+  uploadedImageBase64 = null;
+  uploadedImageMime = null;
+  fileInput.value = '';
+  filenameLabel.textContent = '';
+  filenameLabel.style.display = 'none';
+  filePreview.style.display = 'none';
+  filePreview.src = '';
+});
+
+// 初始僅在未提問時顯示建議（會自動請AI產生建議問題）
+showSuggestionsBar(true);
+</script>
 </body>
 </html>
