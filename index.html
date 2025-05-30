@@ -5,9 +5,23 @@
   <title>Xwork AI (beta)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    html, body { height: 100%; margin: 0; padding: 0; background: #131314; color: #ededed; font-family: 'Segoe UI', Arial, sans-serif; }
-    body, #root { height: 100vh; }
-    #container { display: flex; height: 100vh; min-height: 0; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #131314;
+      color: #ededed;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    body, #root {
+      height: 100vh;
+    }
+    #container {
+      display: flex;
+      height: 100vh;
+      min-height: 0;
+      flex-direction: row;
+    }
     #sidebar {
       width: 280px;
       background: #232329;
@@ -16,18 +30,22 @@
       flex-direction: column;
       justify-content: space-between;
       height: 100vh;
+      min-width: 60px;
+      transition: width 0.2s;
     }
     #sidebar-header {
       padding: 24px 24px 0 24px;
       font-weight: bold;
       font-size: 1.4rem;
       letter-spacing: 0.5px;
+      word-break: break-word;
     }
     #sidebar-desc {
       font-size: 0.95rem;
       color: #b5b5be;
       padding: 8px 24px;
       min-height: 64px;
+      word-break: break-word;
     }
     #sidebar-bottom {
       padding: 24px;
@@ -43,12 +61,14 @@
     }
     #main {
       flex: 1;
+      min-width: 0;
       min-height: 0;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       position: relative;
+      background: #131314;
     }
     #welcome {
       margin-bottom: 30px;
@@ -71,6 +91,7 @@
       max-width: 700px;
       margin: 0 auto;
       display: flex;
+      flex-wrap: wrap;
       justify-content: center;
       gap: 16px;
       margin-bottom: 8px;
@@ -100,7 +121,6 @@
       border: 1.5px solid #5d5dff;
       background: #23232a;
     }
-    /* 預測回覆淡入動畫（從下方） */
     @keyframes fadeInUp {
       from {
         opacity: 0;
@@ -314,18 +334,79 @@
       z-index: 3;
       justify-content: center;
     }
+    /* 響應式調整 */
+    @media (max-width: 1100px) {
+      #container {
+        flex-direction: column;
+      }
+      #sidebar {
+        width: 100vw;
+        min-width: 0;
+        height: auto;
+        flex-direction: row;
+        align-items: flex-start;
+        position: relative;
+      }
+      #main {
+        padding-top: 0px;
+      }
+    }
     @media (max-width: 900px) {
-      #sidebar { width: 60px; }
-      #sidebar-header, #sidebar-desc, #sidebar-bottom { display: none; }
+      #sidebar {
+        width: 60px;
+        min-width: 0;
+        padding: 0;
+      }
+      #sidebar-header, #sidebar-desc, #sidebar-bottom {
+        display: none;
+      }
+      #main {
+        padding-top: 0px;
+      }
     }
     @media (max-width: 700px) {
-      #main, #input-box, #chat-area, #suggestions-bar { max-width: 98vw; }
-      #sidebar { display: none; }
-      #container { flex-direction: column; }
-      #suggestions-bar { flex-wrap: wrap; gap:10px;}
-      .suggestion-btn { min-width: 120px; padding: 8px 6px; font-size:1em;}
-      .filename-label { max-width: 60px; font-size: 0.92em;}
-      .file-preview { max-width: 32px; max-height: 24px;}
+      #main, #input-box, #chat-area, #suggestions-bar {
+        max-width: 98vw;
+        min-width: 0;
+      }
+      #sidebar {
+        display: none;
+      }
+      #container {
+        flex-direction: column;
+      }
+      #suggestions-bar {
+        flex-wrap: wrap;
+        gap:10px;
+        position: static;
+        margin-bottom: 16px;
+      }
+      .suggestion-btn {
+        min-width: 100px;
+        padding: 8px 4px;
+        font-size: 1em;
+      }
+      .filename-label {
+        max-width: 60px;
+        font-size: 0.92em;
+      }
+      .file-preview {
+        max-width: 32px;
+        max-height: 24px;
+      }
+      #input-box {
+        padding: 0 0 12px 0;
+        max-width: 98vw;
+      }
+    }
+    @media (max-width: 500px) {
+      #welcome h1 { font-size: 1.3rem; }
+      #welcome p { font-size: 1rem; }
+      .bubble, .bubble.user {
+        font-size: 0.98rem;
+        padding: 9px 8px;
+      }
+      .suggestion-btn { font-size: 0.95rem; }
     }
   </style>
 </head>
@@ -396,9 +477,9 @@ let uploadedImageMime = null;
 // Contextual Memory
 // =======================
 let conversationHistory = []; // {role: 'user'|'model', parts: [{text|inline_data}]}
-const MAX_CONTEXT_MESSAGES = 8; // 包含最新提問與歷史上下文
+const MAX_CONTEXT_MESSAGES = 8;
 
-// 動態生成英文預測回覆，每則10~15字，並有動畫
+// 動態生成英文預測回覆，每則10~15字，有動畫
 async function fetchSuggestions() {
   suggestionsBar.innerHTML = '<div style="color:#aaa;font-size:1.05em;padding:15px 0;">AI is generating suggestions...</div>';
   try {
@@ -407,7 +488,7 @@ async function fetchSuggestions() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [
-          { parts: [ { text: "Please generate 4 creative and diverse example prompts for chatting with an AI, in English only, each 10 to 15 characters long (including spaces). No numbering, no explanation, just one on each line." } ] }
+          { parts: [ { text: "Generate 4 creative and diverse prompts for chatting with an AI, in English, each between 10 and 15 characters (including spaces). No numbering, no explanations, just one on each line." } ] }
         ]
       })
     });
@@ -416,14 +497,12 @@ async function fetchSuggestions() {
     if(data.candidates && data.candidates[0]) {
       const raw = data.candidates[0].content.parts[0].text;
       suggestionList = raw.split("\n").map(s=>s.trim()).filter(Boolean);
-      // 補齊長度/格式
-      suggestionList = suggestionList.filter(sug => sug.length >= 8 && sug.length <= 20);
+      suggestionList = suggestionList.filter(sug => sug.length >= 8 && sug.length <= 25);
       if(suggestionList.length > 4) suggestionList = suggestionList.slice(0,4);
       if(suggestionList.length === 1 && (suggestionList[0].includes("|") || suggestionList[0].includes(";"))) {
         suggestionList = suggestionList[0].split(/[|;]+/).map(s=>s.trim()).filter(Boolean);
       }
     }
-    // 若AI沒給夠，補預設
     while(suggestionList.length < 4) {
       suggestionList.push("How are you today?");
     }
@@ -433,7 +512,7 @@ async function fetchSuggestions() {
       const btn = document.createElement('button');
       btn.className = 'suggestion-btn';
       btn.innerText = sug;
-      btn.style.animationDelay = (0.07 * idx) + 's'; // 漸層動畫
+      btn.style.animationDelay = (0.07 * idx) + 's';
       btn.addEventListener('click', () => {
         chatInput.value = sug;
         sendBtn.click();
@@ -445,13 +524,11 @@ async function fetchSuggestions() {
   }
 }
 
-// 頁面剛載入時（還沒問任何問題）才顯示預測回覆
+// 僅在未提問時顯示預測回覆
 function showSuggestionsBar(show) {
   suggestionsBar.style.display = show ? 'flex' : 'none';
   if(show) fetchSuggestions();
 }
-
-// 只要輸入框有內容或曾經問過問題就隱藏預測回覆
 chatInput.addEventListener('input', () => {
   if (chatInput.value.trim().length > 0) {
     showSuggestionsBar(false);
@@ -481,8 +558,6 @@ function appendMsg(text, sender, isTyping = false, anim = false) {
     return bubble;
   }
 }
-
-// 淡入動畫顯示AI訊息
 function fadeInAIMessage(bubble, text) {
   bubble.classList.add('fade-in-anim');
   bubble.innerHTML = text.replace(/\n/g, '<br>');
@@ -533,14 +608,12 @@ inputBox.addEventListener('submit', async (e) => {
   const msg = chatInput.value.trim();
   if (!msg && !uploadedContent && !uploadedImageBase64) return;
   chatInput.value = '';
-  // 開始聊天後永遠隱藏預測回覆
   showSuggestionsBar(false);
   if (!chatting) {
     welcome.style.display = 'none';
     chatArea.style.display = 'flex';
     chatting = true;
   }
-  // 顯示使用者訊息
   let userMsg = msg;
   let hasImage = uploadedImageBase64 != null;
   if(uploadedFile){
@@ -556,8 +629,6 @@ inputBox.addEventListener('submit', async (e) => {
   }else{
     appendMsg(userMsg, 'user', false, false);
   }
-
-  // === 上下文記憶：加入到對話歷史 ===
   let userParts = [];
   if(msg) userParts.push({ text: msg });
   if(hasImage){
@@ -575,14 +646,12 @@ inputBox.addEventListener('submit', async (e) => {
   sendBtn.disabled = true;
   const aiBubble = appendMsg('', 'ai', true, false);
 
-  // === 準備上下文內容，帶入最多 MAX_CONTEXT_MESSAGES 則對話（雙方一組）
   let contextToSend = [];
   if (conversationHistory.length > MAX_CONTEXT_MESSAGES) {
     contextToSend = conversationHistory.slice(-MAX_CONTEXT_MESSAGES);
   } else {
     contextToSend = [...conversationHistory];
   }
-
   try {
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey, {
       method: "POST",
@@ -590,13 +659,11 @@ inputBox.addEventListener('submit', async (e) => {
       body: JSON.stringify({ contents: contextToSend })
     });
     const data = await response.json();
-    chatArea.removeChild(aiBubble.parentNode); // 移除思考中
+    chatArea.removeChild(aiBubble.parentNode);
     const newBubble = appendMsg('', 'ai', false, true);
     if (data.candidates && data.candidates[0]) {
       const aiMsg = data.candidates[0].content.parts[0].text;
       fadeInAIMessage(newBubble, aiMsg);
-
-      // === 上下文記憶：AI回覆也加入對話歷史 ===
       conversationHistory.push({
         role: "model",
         parts: data.candidates[0].content.parts
@@ -618,7 +685,6 @@ inputBox.addEventListener('submit', async (e) => {
     });
   }
   sendBtn.disabled = false;
-  // 重設檔案
   uploadedFile = null;
   uploadedContent = null;
   uploadedImageBase64 = null;
@@ -629,8 +695,6 @@ inputBox.addEventListener('submit', async (e) => {
   filePreview.style.display = 'none';
   filePreview.src = '';
 });
-
-// 初始僅在未提問時顯示建議（會自動請AI產生建議問題）
 showSuggestionsBar(true);
 </script>
 </body>
