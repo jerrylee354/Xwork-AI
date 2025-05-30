@@ -6,11 +6,9 @@
 
 ## **New function🎉️**
 
-The latest version: beta 0.30
+The latest version: beta 0.33
 
-* Chat records
-
-* Unlimited chat records
+* Weather integration
 
 * bug repair
 
