@@ -1,26 +1,33 @@
 # **Xwork AI ✨**
 
-#### 一款永久免費的AI工具
+#### A permanent free AI tool
 
-##### 打開瀏覽器即可使用，無需登入，沒有使用任何限制。支持生成代碼 文檔 本地保存聊天記錄等功能
+##### You can use it by opening the browser without logging in and without any restrictions. Support generation code, document, local saving of chat records and other functions
 
-## **新功能🎉️**
+## **New function🎉️**
 
-最新版本：beta 0.30
+The latest version: beta 0.30
 
-* 聊天記錄
-* 無限聊天記錄
-* bug修復
+* Chat records
 
-## 隱私聲明🔏
+* Unlimited chat records
 
-* 第一條我們絕對不會散撥您的個資
-* 第二條我們絕對不會讓非官方人士得知您的電子郵件
-* 第三條我們絕對不會我們不會在未獲得您的同意刪除您帳號
-  
-  以上有需補充內容請寄送至ab1f642d@gmail.com給我們
+* bug repair
 
-## 頁面預覽🤗
+## Privacy statement🔏
+
+* First, we will never disperse your personal funds.
+
+* Article 2 We will never let unofficials know your email address.
+
+* Article 3 We will never delete your account without your consent.
+
+If you need to supplement the above, please send it to ab1f642d@gmail.com
+
+## Page Preview🤗
+
+Home page
+![image](https://github.com/user-attachments/assets/1eff0298-fc2a-491f-a311-683a3c24c319)
 
 
 
