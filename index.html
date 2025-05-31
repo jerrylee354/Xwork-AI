@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>AI Chatbot - Gemini UI</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <style>
     html, body { height: 100%; margin: 0; padding: 0; background: #131314; color: #ededed; font-family: 'Segoe UI', Arial, sans-serif; }
     body, #root { height: 100vh; }
@@ -16,11 +16,12 @@
       flex-direction: column;
       height: 100vh;
       min-width: 60px;
-      transition: width 0.25s cubic-bezier(.7,0,.3,1), min-width 0.25s cubic-bezier(.7,0,.3,1), opacity 0.18s;
+      transition: width 0.25s cubic-bezier(.7,0,.3,1), min-width 0.25s cubic-bezier(.7,0,.3,1), opacity 0.18s, left 0.3s;
       position: relative;
       z-index: 10;
       overflow: hidden;
       opacity: 1;
+      left: 0;
     }
     #sidebar.collapsed {
       width: 0 !important;
@@ -120,7 +121,7 @@
       align-items: center;
       padding: 8px 10px;
       border-radius: 7px;
-      background: none;
+      background: #232329;
       color: #ededed;
       font-size: 1.04em;
       border: none;
@@ -136,8 +137,9 @@
     }
     .chat-list-item.active,
     .chat-list-item:hover {
-      background: #29293a;
-      color: #fff;
+      /* 使用水泥色 #b5b5be 作為背景和字色 */
+      background: #b5b5be;
+      color: #232329;
       opacity: 1;
     }
     .chat-list-item-title {
@@ -282,7 +284,7 @@
       margin: 0 auto;
       display: flex;
       flex-direction: row;
-      justify-content: flex-start;
+      justify-content: center;
       gap: 16px;
       margin-bottom: 8px;
       position: absolute;
@@ -305,7 +307,7 @@
       cursor: pointer;
       min-width: 140px;
       max-width: 225px;
-      text-align: left;
+      text-align: center;
       transition: border 0.15s, background 0.15s;
       white-space: normal;
       line-height: 1.25em;
@@ -542,24 +544,142 @@
       z-index: 3;
       justify-content: center;
     }
+    @media (max-width: 700px) {
+      #container {
+        flex-direction: column;
+        height: 100vh;
+        min-height: 0;
+      }
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        width: 85vw;
+        max-width: 340px;
+        min-width: 220px;
+        z-index: 1002;
+        background: #232329;
+        box-shadow: 2px 0 30px #000a;
+        transition: left .3s cubic-bezier(.7,0,.3,1), opacity .2s;
+        pointer-events: auto;
+      }
+      #sidebar.mobile-hidden {
+        left: -110vw !important;
+        opacity: 0 !important;
+        pointer-events: none;
+        transition: left .35s cubic-bezier(.8,0,.5,1), opacity .2s;
+      }
+      #mobile-sidebar-mask {
+        display: none;
+        position: fixed;
+        z-index: 1001;
+        left: 0; top: 0; right: 0; bottom: 0;
+        width: 100vw; height: 100vh;
+        background: rgba(47,48,56,0.40);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        transition: opacity .22s;
+      }
+      #mobile-sidebar-mask.active {
+        display: block;
+      }
+      #main {
+        width: 100vw;
+        min-width: 0;
+        padding-bottom: 70px;
+      }
+      #sidebar-restore-btn { display: none !important; }
+      #sidebar-header-row { padding-top: 16px; }
+      #chat-area, #welcome {
+        max-width: 100vw !important;
+        width: 100vw !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      #welcome, #chat-area, #suggestions-bar, #input-box {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      #suggestions-bar {
+        justify-content: center;
+        padding-left: 16px;
+        padding-right: 16px;
+        left: 0;
+        right: 0;
+        max-width: 100vw;
+      }
+      .suggestion-btn {
+        min-width: 110px;
+        max-width: 160px;
+        margin-left: 4px;
+        margin-right: 4px;
+        font-size: 0.99rem;
+      }
+      #input-box {
+        max-width: 100vw !important;
+        width: 100vw !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        left: 0 !important;
+        right: 0 !important;
+      }
+      .messageBox {
+        width: 100%;
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+    }
+    #mobile-sidebar-trigger {
+      display: none;
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      z-index: 50;
+      background: #232329;
+      border-radius: 8px;
+      border: 1px solid #35353d;
+      padding: 8px;
+      width: 38px;
+      height: 38px;
+    }
+    #mobile-sidebar-trigger svg {
+      width: 22px;
+      height: 22px;
+      color: #ededed;
+      stroke: #ededed;
+    }
+    @media (max-width: 700px) {
+      #mobile-sidebar-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #sidebar-collapse-btn { display: none !important; }
+    }
   </style>
 </head>
 <body>
 <div id="root">
   <div id="container">
-    <!-- Sidebar -->
-    <div id="sidebar">
+    <button id="mobile-sidebar-trigger" title="Show Sidebar" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="currentColor" fill="none"/></svg>
+    </button>
+    <div id="mobile-sidebar-mask"></div>
+    <div id="sidebar" class="mobile-hidden">
       <div id="sidebar-content">
         <div id="sidebar-header-row">
           <span id="sidebar-header">Chatbot</span>
           <span class="sidebar-header-actions">
-            <button class="sidebar-header-btn" id="sidebar-add-btn" title="Add New Chat">
+            <button class="sidebar-header-btn" id="sidebar-add-btn" title="Add New Chat" type="button" tabindex="0">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-linecap="round"/>
                 <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-linecap="round"/>
               </svg>
             </button>
-            <button id="sidebar-collapse-btn" title="Collapse Sidebar">
+            <button id="sidebar-collapse-btn" title="Collapse Sidebar" type="button">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
                 <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor"/>
                 <rect x="8" y="8" width="8" height="8" rx="1.5" stroke="currentColor" fill="none"/>
@@ -611,6 +731,52 @@
   </div>
 </div>
 <script>
+// --------- 手機側邊欄互動 ---------
+const sidebar = document.getElementById('sidebar');
+const mobileSidebarTrigger = document.getElementById('mobile-sidebar-trigger');
+const mobileSidebarMask = document.getElementById('mobile-sidebar-mask');
+function isMobileScreen() {
+  return window.innerWidth <= 700;
+}
+function openMobileSidebar() {
+  sidebar.classList.remove("mobile-hidden");
+  mobileSidebarMask.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+function closeMobileSidebar() {
+  sidebar.classList.add("mobile-hidden");
+  mobileSidebarMask.classList.remove("active");
+  document.body.style.overflow = "";
+}
+mobileSidebarTrigger.addEventListener('click', openMobileSidebar);
+mobileSidebarMask.addEventListener('click', closeMobileSidebar);
+const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+const sidebarRestoreBtn = document.getElementById('sidebar-restore-btn');
+sidebarCollapseBtn.addEventListener('click', () => {
+  sidebar.classList.add("collapsed");
+  sidebarRestoreBtn.style.display = "flex";
+  sidebarRestoreBtn.style.left = "24px";
+});
+sidebarRestoreBtn.addEventListener('click', () => {
+  sidebar.classList.remove("collapsed");
+  sidebarRestoreBtn.style.display = "none";
+});
+function updateSidebarForScreen() {
+  if (isMobileScreen()) {
+    sidebar.classList.add("mobile-hidden");
+    mobileSidebarTrigger.style.display = "flex";
+    mobileSidebarMask.classList.remove("active");
+    document.body.style.overflow = "";
+  } else {
+    sidebar.classList.remove("mobile-hidden");
+    mobileSidebarTrigger.style.display = "none";
+    mobileSidebarMask.classList.remove("active");
+    document.body.style.overflow = "";
+  }
+}
+window.addEventListener("resize", updateSidebarForScreen);
+updateSidebarForScreen();
+// --------- 聊天主體功能 ---------
 const CHAT_KEY = "gemini-multi-chats-v1";
 let chats = [];
 let currentChatId = null;
@@ -626,9 +792,6 @@ const filenameLabel = document.getElementById('filename-label');
 const filePreview = document.getElementById('file-preview');
 const welcome = document.getElementById('welcome');
 const suggestionsBar = document.getElementById('suggestions-bar');
-const sidebar = document.getElementById('sidebar');
-const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
-const sidebarRestoreBtn = document.getElementById('sidebar-restore-btn');
 const sidebarAddBtn = document.getElementById('sidebar-add-btn');
 const chatList = document.getElementById('chat-list');
 const sidebarDesc = document.getElementById('sidebar-desc');
@@ -637,31 +800,22 @@ let uploadedFile = null;
 let uploadedContent = null;
 let uploadedImageBase64 = null;
 let uploadedImageMime = null;
-
-// -- 當前時間(每次送出訊息都獲取) --
 function getCurrentDateTimeStr() {
   const now = new Date();
-  // yyyy-MM-dd HH:mm:ss
   return now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0")
     +" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0")+":"+String(now.getSeconds()).padStart(2,"0");
 }
-
-// ------ 天氣API ------
 const TOMORROW_API_KEY = "HBiLD92vzozGrbSk1M2NPwVaRIjrNHAf";
 const WEATHER_API_URL = "https://api.tomorrow.io/v4/weather/forecast";
-
-// 取得瀏覽器定位，Promise回傳 {lat, lon}
 function getUserLocation() {
   return new Promise((resolve, reject) => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         pos => resolve({lat: pos.coords.latitude, lon: pos.coords.longitude}),
-        err => resolve(null), // 若用戶拒絕就回傳null
+        err => resolve(null),
         {timeout: 4000}
       );
-    } else {
-      resolve(null);
-    }
+    } else { resolve(null); }
   });
 }
 async function fetchWeatherByLocation(locationObj) {
@@ -671,9 +825,7 @@ async function fetchWeatherByLocation(locationObj) {
     if (!res.ok) throw new Error("Weather API error");
     const data = await res.json();
     return data;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 function parseWeatherText(weather) {
   try {
@@ -704,8 +856,6 @@ function weatherCodeToText(code) {
 function isWeatherQuery(msg) {
   return /天氣|weather|氣象|下雨|晴|溫度|濕度|forecast|rain|sunny|cloud|snow|會不會下雨|幾度|today's weather/i.test(msg);
 }
-
-// -------- 聊天記錄存取 ---------
 function saveChatsToStorage() {
   localStorage.setItem(CHAT_KEY, JSON.stringify(chats));
 }
@@ -740,22 +890,22 @@ function createNewChatObj() {
   };
 }
 function updateChatTitle(chat, force) {
-  if (chat.aiTitleDone) return;
-  let firstUserMsg = null;
+  // 用第一則user訊息（不含日期時間）命名
+  if (!chat) return;
   for (let i = 0; i < chat.history.length; ++i) {
     if (chat.history[i].role === "user") {
-      let text = "";
-      chat.history[i].parts.forEach(p => { if (p.text) text += p.text; });
-      if (text.trim()) {
-        firstUserMsg = text.trim();
-        break;
+      let txt = "";
+      chat.history[i].parts.forEach(p => {
+        if (p.text) txt += p.text;
+      });
+      // 移除[當前日期與時間為: ...]\n
+      txt = txt.replace(/^\[當前日期與時間為:[^\]]*\]\n?/,"").trim();
+      if (txt) {
+        chat.title = txt.slice(0, 20);
+        chat.aiTitleDone = true;
+        return;
       }
     }
-  }
-  if (firstUserMsg && !chat.aiTitleDone) {
-    genAITitle(firstUserMsg, chat.id);
-    chat.title = firstUserMsg.slice(0, 20);
-    return;
   }
   if (force || !chat.title) chat.title = 'New chat';
 }
@@ -787,8 +937,10 @@ function switchChat(chatId) {
   renderChatList();
   renderChatHistory();
   updateSuggestionBarForCurrentChat();
+  if (isMobileScreen()) closeMobileSidebar();
 }
-function addNewChat() {
+function addNewChat(e) {
+  if (e) e.preventDefault();
   const chat = createNewChatObj();
   chats.unshift(chat);
   currentChatId = chat.id;
@@ -799,7 +951,12 @@ function addNewChat() {
     saveChatsToStorage();
   }, 0);
   updateSuggestionBarForCurrentChat();
+  if (isMobileScreen()) closeMobileSidebar();
 }
+sidebarAddBtn.addEventListener('click', addNewChat);
+sidebarAddBtn.addEventListener('keydown', function(e){
+  if (e.key === "Enter" || e.key === " ") { addNewChat(e); }
+});
 function renderChatHistory() {
   chatArea.innerHTML = "";
   let anyMsg = false;
@@ -867,8 +1024,8 @@ ${firstMsg}`;
       if(title.length > 10) title = title.slice(0,10);
     }
     const chat = chats.find(c => c.id === chatId);
-    if(chat) {
-      chat.title = title || chat.title || firstMsg.slice(0, 10);
+    if(chat && title) {
+      chat.title = title;
       chat.aiTitleDone = true;
       saveChatsToStorage();
       renderChatList();
@@ -877,19 +1034,8 @@ ${firstMsg}`;
 }
 loadChatsFromStorage();
 
-sidebarCollapseBtn.addEventListener('click', () => {
-  sidebar.classList.add("collapsed");
-  sidebarRestoreBtn.style.display = "flex";
-  sidebarRestoreBtn.style.left = "24px";
-});
-sidebarRestoreBtn.addEventListener('click', () => {
-  sidebar.classList.remove("collapsed");
-  sidebarRestoreBtn.style.display = "none";
-});
-sidebarAddBtn.onclick = addNewChat;
-
 async function fetchSuggestions() {
-  suggestionsBar.innerHTML = '<div style="color:#aaa;font-size:1.05em;padding:15px 0;">AI is generating suggestions...</div>';
+  suggestionsBar.innerHTML = '<div style="color:#aaa;font-size:1.05em;padding:15px 0; text-align:center;">AI is generating suggestions...</div>';
   try {
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey, {
       method: "POST",
@@ -952,7 +1098,7 @@ async function fetchSuggestions() {
       suggestionsBar.appendChild(btn);
     });
   } catch(e) {
-    suggestionsBar.innerHTML = '<div style="color:#aaa;">AI suggestions failed. Please refresh.</div>';
+    suggestionsBar.innerHTML = '<div style="color:#aaa; text-align:center;">AI suggestions failed. Please refresh.</div>';
   }
 }
 function showSuggestionsBar(show) {
@@ -979,7 +1125,6 @@ chatInput.addEventListener('input', () => {
     showSuggestionsBar(false);
   }
 });
-
 function appendMsg(text, sender, isTyping = false, anim = false) {
   const row = document.createElement('div');
   row.className = 'msg-row msg-' + sender;
@@ -1004,7 +1149,6 @@ function fadeInAIMessage(bubble, text) {
   bubble.classList.add('fade-in-anim');
   bubble.innerHTML = text.replace(/\n/g, '<br>');
 }
-
 fileInput.addEventListener('change', () => {
   uploadedFile = null;
   uploadedContent = null;
@@ -1076,7 +1220,6 @@ async function genImage(prompt) {
     appendMsg('Network error or image API error.', 'ai', false, true);
   }
 }
-
 inputBox.addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = chatInput.value.trim();
@@ -1103,7 +1246,6 @@ inputBox.addEventListener('submit', async (e) => {
   }else{
     appendMsg(userMsg, 'user', false, false);
   }
-
   // =========== 天氣查詢邏輯 ===========
   if (isWeatherQuery(msg)) {
     const bubble = appendMsg("正在查詢天氣...", "ai", true, false);
@@ -1116,7 +1258,6 @@ inputBox.addEventListener('submit', async (e) => {
     const weatherData = await fetchWeatherByLocation(locationObj);
     chatArea.removeChild(bubble.parentNode);
     let weatherText = weatherData ? parseWeatherText(weatherData) : "天氣查詢過程發生錯誤，請稍後再試。";
-    // 整理回覆
     let currTime = getCurrentDateTimeStr();
     let summary = `根據你當前位置${locationStr}，以下是${currTime}的天氣整理：\n${weatherText}`;
     appendMsg(summary, "ai", false, true);
@@ -1128,7 +1269,6 @@ inputBox.addEventListener('submit', async (e) => {
     showSuggestionsBar(false);
     return;
   }
-
   // AI繪圖指令
   if(/^ *(畫|生成|create|draw|generate|make).*(圖|image|picture|photo|畫|圖片)/i.test(msg)) {
     await genImage(msg.replace(/^ *(畫|生成|create|draw|generate|make)/i, ""));
@@ -1148,7 +1288,6 @@ inputBox.addEventListener('submit', async (e) => {
     showSuggestionsBar(false);
     return;
   }
-
   let userParts = [];
   if(msg) userParts.push({ text: msg });
   if(hasImage){
@@ -1161,20 +1300,16 @@ inputBox.addEventListener('submit', async (e) => {
   } else if(uploadedContent){
     userParts.push({ text: `\n[Uploaded file: ${uploadedFile.name}]\n${uploadedContent}` });
   }
-  // 把當前時間也放進 prompt context，讓 AI 能根據時間回答
   const nowStr = getCurrentDateTimeStr();
   conversationHistory.push({ role: "user", parts: [ { text: `[當前日期與時間為: ${nowStr}]\n` + msg } ] });
-
   sendBtn.disabled = true;
   const aiBubble = appendMsg('', 'ai', true, false);
-
   let contextToSend = [];
   if (conversationHistory.length > MAX_CONTEXT_MESSAGES) {
     contextToSend = conversationHistory.slice(-MAX_CONTEXT_MESSAGES);
   } else {
     contextToSend = [...conversationHistory];
   }
-
   try {
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey, {
       method: "POST",
@@ -1222,7 +1357,6 @@ inputBox.addEventListener('submit', async (e) => {
   renderChatList();
   showSuggestionsBar(false);
 });
-showSuggestionsBar(true);
 </script>
 </body>
 </html>
