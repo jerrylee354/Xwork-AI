@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AI Chatbot - Gemini UI</title>
+  <title>kodilly AI</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <style>
     html, body { height: 100%; margin: 0; padding: 0; background: #131314; color: #ededed; font-family: 'Segoe UI', Arial, sans-serif; }
@@ -151,6 +151,45 @@
       min-width: 0;
       font-size: 1em;
     }
+    .chat-context-menu {
+      position: fixed;
+      background: #19191d;
+      border: 1px solid #35353d;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 2000;
+      min-width: 120px;
+      padding: 4px 0;
+      display: none;
+    }
+    .chat-context-menu-item {
+      padding: 8px 16px;
+      cursor: pointer;
+      color: #ededed;
+      font-size: 0.95rem;
+      transition: background 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .chat-context-menu-item:hover {
+      background: #2a2a32;
+    }
+    .chat-context-menu-item.danger:hover {
+      background: #ff4444;
+      color: #fff;
+    }
+    .chat-rename-input {
+      background: #19191d;
+      border: 1px solid #5d5dff;
+      border-radius: 6px;
+      color: #ededed;
+      padding: 4px 8px;
+      font-size: 0.95rem;
+      width: 100%;
+      outline: none;
+    }
     #sidebar-restore-btn {
       position: absolute;
       top: 24px;
@@ -264,6 +303,11 @@
       text-align: center;
       margin-top: -70px;
       word-break: break-word;
+      width: 100%;
+      max-width: 700px;
+      align-self: center;
+      margin-left: auto;
+      margin-right: auto;
     }
     #welcome h1 {
       font-size: 2.4rem;
@@ -271,6 +315,27 @@
       color: #fff;
       margin: 0 0 10px 0;
       word-break: break-word;
+      line-height: 1.2;
+    }
+    .gradient-text {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3, #54a0ff);
+      background-size: 400% 400%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientFlow 3s ease-in-out infinite;
+      display: inline-block;
+    }
+    @keyframes gradientFlow {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
     }
     #welcome p {
       color: #b5b5be;
@@ -703,9 +768,13 @@
         <rect x="8" y="8" width="8" height="8" rx="1.5" stroke="currentColor" fill="none"/>
       </svg>
     </button>
+    <div id="chat-context-menu" class="chat-context-menu">
+      <button class="chat-context-menu-item" id="rename-chat-btn">重新命名</button>
+      <button class="chat-context-menu-item danger" id="delete-chat-btn">刪除</button>
+    </div>
     <div id="main">
       <div id="welcome">
-        <h1>Hello there!</h1>
+        <h1>I am kodilly <span class="gradient-text">AI</span>!</h1>
         <p>How can I help you today?</p>
       </div>
       <div id="suggestions-bar"></div>
@@ -926,6 +995,94 @@ function renderChatList() {
         switchChat(chat.id);
       }
     };
+    
+    // 長按功能
+    let longPressTimer;
+    let isLongPress = false;
+    let startX, startY;
+    
+    // 滑鼠事件
+    btn.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // 只處理左鍵
+      isLongPress = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      longPressTimer = setTimeout(() => {
+        isLongPress = true;
+        showChatContextMenu(e, chat);
+      }, 500);
+    });
+    
+    btn.addEventListener('mouseup', (e) => {
+      clearTimeout(longPressTimer);
+      if (!isLongPress && e.button === 0) {
+        // 正常點擊切換聊天室
+        if (currentChatId !== chat.id) {
+          switchChat(chat.id);
+        }
+      }
+    });
+    
+    btn.addEventListener('mousemove', (e) => {
+      if (longPressTimer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) {
+        clearTimeout(longPressTimer);
+      }
+    });
+    
+    btn.addEventListener('mouseleave', () => {
+      clearTimeout(longPressTimer);
+    });
+    
+    // 觸控事件
+    btn.addEventListener('touchstart', (e) => {
+      isLongPress = false;
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      longPressTimer = setTimeout(() => {
+        isLongPress = true;
+        showChatContextMenu(e, chat);
+      }, 500);
+    });
+    
+    btn.addEventListener('touchmove', (e) => {
+      if (longPressTimer) {
+        const touch = e.touches[0];
+        if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) {
+          clearTimeout(longPressTimer);
+        }
+      }
+    });
+    
+    btn.addEventListener('touchend', (e) => {
+      clearTimeout(longPressTimer);
+      if (!isLongPress) {
+        // 正常點擊切換聊天室
+        if (currentChatId !== chat.id) {
+          switchChat(chat.id);
+        }
+      } else {
+        e.preventDefault();
+      }
+    });
+    
+    btn.addEventListener('touchcancel', () => {
+      clearTimeout(longPressTimer);
+    });
+    
+    // 右鍵選單
+    btn.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showChatContextMenu(e, chat);
+    });
+    
+    // 移除原來的點擊事件，因為已經在 mouseup 和 touchend 中處理了
+    // btn.onclick = () => {
+    //   if (currentChatId !== chat.id) {
+    //     switchChat(chat.id);
+    //   }
+    // };
+    
     chatList.appendChild(btn);
   });
 }
@@ -941,6 +1098,15 @@ function switchChat(chatId) {
 }
 function addNewChat(e) {
   if (e) e.preventDefault();
+  
+  // 檢查是否已經有空的聊天室
+  const emptyChat = chats.find(chat => chat.history.length === 0);
+  if (emptyChat) {
+    // 如果已經有空聊天室，切換到該聊天室
+    switchChat(emptyChat.id);
+    return;
+  }
+  
   const chat = createNewChatObj();
   chats.unshift(chat);
   currentChatId = chat.id;
@@ -1004,10 +1170,17 @@ function showChatListLoader(show) {
   }
 }
 async function genAITitle(firstMsg, chatId) {
-  const prompt = `請針對以下使用者的第一句提問，為這個對話擬一個最多10字的有意義聊天室標題，只回標題本身，不要任何標點或說明：
-${firstMsg}`;
+  const prompt = `請針對以下使用者的第一句提問，為這個對話擬一個簡潔有意義的中文聊天室標題。
+要求：
+1. 最多8個中文字
+2. 要能準確概括問題的主題
+3. 只回答標題本身，不要引號、標點或其他說明
+4. 例如：「如何學程式」、「天氣查詢」、「料理食譜」
+
+使用者問題：${firstMsg}`;
+
   try {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro:generateContent?key=" + apiKey, {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1020,9 +1193,22 @@ ${firstMsg}`;
     let title = "";
     if(data.candidates && data.candidates[0] && data.candidates[0].content.parts[0].text) {
       title = data.candidates[0].content.parts[0].text.trim();
-      title = title.replace(/^[\s\-\.：:【\[]+/,"").replace(/[\-\.\]】：:]+$/,"").replace(/\s+/g, "");
-      if(title.length > 10) title = title.slice(0,10);
+      // 清理標題格式
+      title = title.replace(/^[「『"']*|[」』"']*$/g, ""); // 移除引號
+      title = title.replace(/^[\s\-\.：:【\[]+|[\-\.\]】：:]+$/g, ""); // 移除標點
+      title = title.replace(/\s+/g, ""); // 移除空格
+      
+      // 限制長度
+      if(title.length > 8) {
+        title = title.slice(0, 8);
+      }
+      
+      // 如果標題為空或太短，使用fallback
+      if(!title || title.length < 2) {
+        title = "新對話";
+      }
     }
+    
     const chat = chats.find(c => c.id === chatId);
     if(chat && title) {
       chat.title = title;
@@ -1030,9 +1216,129 @@ ${firstMsg}`;
       saveChatsToStorage();
       renderChatList();
     }
-  } catch(e) { }
+  } catch(e) {
+    // 如果AI生成失敗，使用預設邏輯
+    const chat = chats.find(c => c.id === chatId);
+    if(chat) {
+      updateChatTitle(chat, true);
+      saveChatsToStorage();
+      renderChatList();
+    }
+  }
 }
 loadChatsFromStorage();
+
+// 上下文選單功能
+const chatContextMenu = document.getElementById('chat-context-menu');
+const renameChatBtn = document.getElementById('rename-chat-btn');
+const deleteChatBtn = document.getElementById('delete-chat-btn');
+let contextMenuChatId = null;
+
+function showChatContextMenu(event, chat) {
+  contextMenuChatId = chat.id;
+  chatContextMenu.style.display = 'block';
+  
+  // 計算選單位置
+  let x = event.clientX || (event.touches && event.touches[0].clientX) || 0;
+  let y = event.clientY || (event.touches && event.touches[0].clientY) || 0;
+  
+  // 手機版和桌面版統一處理，因為現在使用 fixed 定位
+  if (x + 120 > window.innerWidth) {
+    x = window.innerWidth - 120 - 10;
+  }
+  if (y + 80 > window.innerHeight) {
+    y = window.innerHeight - 80 - 10;
+  }
+  
+  // 最小邊距
+  if (x < 10) x = 10;
+  if (y < 10) y = 10;
+  
+  chatContextMenu.style.left = x + 'px';
+  chatContextMenu.style.top = y + 'px';
+}
+
+function hideChatContextMenu() {
+  chatContextMenu.style.display = 'none';
+  contextMenuChatId = null;
+}
+
+// 點擊其他地方隱藏選單
+document.addEventListener('click', (e) => {
+  if (!chatContextMenu.contains(e.target)) {
+    hideChatContextMenu();
+  }
+});
+
+// 重新命名聊天室
+renameChatBtn.addEventListener('click', () => {
+  const chat = chats.find(c => c.id === contextMenuChatId);
+  if (!chat) return;
+  
+  const chatBtn = Array.from(chatList.children).find(btn => 
+    btn.onclick && btn.onclick.toString().includes(chat.id)
+  );
+  
+  if (chatBtn) {
+    const titleSpan = chatBtn.querySelector('.chat-list-item-title');
+    const originalTitle = titleSpan.textContent;
+    
+    titleSpan.innerHTML = `<input type="text" class="chat-rename-input" value="${originalTitle}" maxlength="30">`;
+    const input = titleSpan.querySelector('.chat-rename-input');
+    
+    input.focus();
+    input.select();
+    
+    function saveRename() {
+      const newTitle = input.value.trim();
+      if (newTitle && newTitle !== originalTitle) {
+        chat.title = newTitle;
+        saveChatsToStorage();
+      }
+      titleSpan.textContent = chat.title;
+    }
+    
+    input.addEventListener('blur', saveRename);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        saveRename();
+      } else if (e.key === 'Escape') {
+        titleSpan.textContent = originalTitle;
+      }
+    });
+  }
+  
+  hideChatContextMenu();
+});
+
+// 刪除聊天室
+deleteChatBtn.addEventListener('click', () => {
+  const chat = chats.find(c => c.id === contextMenuChatId);
+  if (!chat) return;
+  
+  if (confirm(`確定要刪除聊天室 "${chat.title}" 嗎？`)) {
+    const chatIndex = chats.findIndex(c => c.id === contextMenuChatId);
+    chats.splice(chatIndex, 1);
+    
+    // 如果刪除完所有聊天室，自動創建一個新的空聊天室
+    if (chats.length === 0) {
+      const newChat = createNewChatObj();
+      chats.push(newChat);
+      currentChatId = newChat.id;
+      conversationHistory = newChat.history;
+    } else if (currentChatId === contextMenuChatId) {
+      // 如果刪除的是當前聊天室，切換到其他聊天室
+      currentChatId = chats[0].id;
+      conversationHistory = chats[0].history;
+    }
+    
+    renderChatHistory();
+    saveChatsToStorage();
+    renderChatList();
+  }
+  
+  hideChatContextMenu();
+});
 
 async function fetchSuggestions() {
   suggestionsBar.innerHTML = '<div style="color:#aaa;font-size:1.05em;padding:15px 0; text-align:center;">AI is generating suggestions...</div>';
@@ -1352,7 +1658,26 @@ inputBox.addEventListener('submit', async (e) => {
   filenameLabel.style.display = 'none';
   filePreview.style.display = 'none';
   filePreview.src = '';
-  updateChatTitle(chats.find(c=>c.id===currentChatId));
+  const currentChat = chats.find(c=>c.id===currentChatId);
+  updateChatTitle(currentChat);
+  
+  // 如果是第一次對話且還沒有AI生成的標題，則自動生成標題
+  if (currentChat && !currentChat.aiTitleDone && currentChat.history.length >= 2) {
+    // 取得使用者的第一個問題（去除時間戳記）
+    const firstUserMsg = currentChat.history[0];
+    if (firstUserMsg && firstUserMsg.role === "user") {
+      let firstQuestion = "";
+      firstUserMsg.parts.forEach(p => {
+        if (p.text) firstQuestion += p.text;
+      });
+      // 移除時間戳記部分
+      firstQuestion = firstQuestion.replace(/^\[當前日期與時間為:[^\]]*\]\n?/,"").trim();
+      if (firstQuestion) {
+        genAITitle(firstQuestion, currentChatId);
+      }
+    }
+  }
+  
   saveChatsToStorage();
   renderChatList();
   showSuggestionsBar(false);
